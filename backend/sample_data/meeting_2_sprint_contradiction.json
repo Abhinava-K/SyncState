@@ -1,0 +1,31 @@
+{
+  "meeting_title": "Sprint Planning & Stack Check (Meeting 2)",
+  "date": "2026-10-24",
+  "turns": [
+    {
+      "turn_index": 0,
+      "speaker": "Sam (Engineering Manager)",
+      "timestamp": "01:20",
+      "text": "Given our sprint velocity, let's stick with MongoDB for the next 6 months to avoid schema migration delays."
+    },
+    {
+      "turn_index": 1,
+      "speaker": "Priya (Product Lead)",
+      "timestamp": "02:45",
+      "text": "The marketing campaign has been brought forward, so our target release freeze is now November 5th."
+    },
+    {
+      "turn_index": 2,
+      "speaker": "Rahul (Backend)",
+      "timestamp": "04:10",
+      "text": "I will deliver the Stripe webhook integration and payment gateway tests by Friday."
+    },
+    {
+      "turn_index": 3,
+      "speaker": "Sarah (QA)",
+      "timestamp": "05:00",
+      "text": "I can run performance load testing on the checkout flow before Tuesday."
+    }
+  ]
+}
+

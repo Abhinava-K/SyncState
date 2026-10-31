@@ -1,0 +1,31 @@
+{
+  "meeting_title": "Architecture & Roadmap Alignment (Meeting 1)",
+  "date": "2026-10-12",
+  "turns": [
+    {
+      "turn_index": 0,
+      "speaker": "Alex (Tech Lead)",
+      "timestamp": "01:10",
+      "text": "We chose PostgreSQL for our database architecture and we are completely standardizing on it."
+    },
+    {
+      "turn_index": 1,
+      "speaker": "Alex (Tech Lead)",
+      "timestamp": "02:30",
+      "text": "Our hard release freeze deadline is set for November 15th to allow two weeks of QA."
+    },
+    {
+      "turn_index": 2,
+      "speaker": "Rahul (Backend)",
+      "timestamp": "03:15",
+      "text": "I will finish the Auth and JWT session migration by Thursday."
+    },
+    {
+      "turn_index": 3,
+      "speaker": "Sarah (QA)",
+      "timestamp": "04:00",
+      "text": "I will set up the end-to-end integration test suite before next Monday."
+    }
+  ]
+}
+

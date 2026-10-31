@@ -1,0 +1,14 @@
+WEBVTT
+
+00:01:20.000 --> 00:01:28.000
+<v Sam (Engineering Manager)>Given our sprint velocity, let's stick with MongoDB for the next 6 months to avoid schema migration delays.</v>
+
+00:02:45.000 --> 00:02:52.000
+<v Priya (Product Lead)>The marketing campaign has been brought forward, so our target release freeze is now November 5th.</v>
+
+00:04:10.000 --> 00:04:18.000
+<v Rahul (Backend)>I will deliver the Stripe webhook integration and payment gateway tests by Friday.</v>
+
+00:05:00.000 --> 00:05:07.000
+<v Sarah (QA)>I can run performance load testing on the checkout flow before Tuesday.</v>
+

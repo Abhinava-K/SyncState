@@ -1,0 +1,14 @@
+WEBVTT
+
+00:01:10.000 --> 00:01:15.000
+<v Alex (Tech Lead)>We chose PostgreSQL for our database architecture and we are standardizing on it.</v>
+
+00:02:30.000 --> 00:02:36.000
+<v Alex (Tech Lead)>Our hard release freeze deadline is set for November 15th to allow QA testing.</v>
+
+00:03:45.000 --> 00:03:52.000
+<v Rahul (Backend)>I will finish the Auth and JWT session migration by Thursday.</v>
+
+00:04:15.000 --> 00:04:22.000
+<v Sarah (QA)>I can run performance load testing on the checkout flow before Tuesday.</v>
+
