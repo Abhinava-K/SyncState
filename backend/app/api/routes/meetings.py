@@ -139,12 +139,17 @@ async def upload_meeting_file(
         elif filename.endswith(".m4a"): mime = "audio/m4a"
         elif filename.endswith(".ogg"): mime = "audio/ogg"
 
+        # Try speech_recognition first (works over standard HTTPS without quota limits)
         try:
-            turns = await extractor_service.transcribe_audio_with_gemini(content_bytes, mime)
-        except ValueError as ve:
-            raise HTTPException(status_code=400, detail=str(ve))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Audio transcription failed: {str(e)}")
+            turns = extractor_service.transcribe_audio_bytes(content_bytes)
+        except Exception as e_stt:
+            if extractor_service.api_key:
+                try:
+                    turns = await extractor_service.transcribe_audio_with_gemini(content_bytes, mime)
+                except Exception as e_gem:
+                    raise HTTPException(status_code=400, detail=f"Audio transcription failed: {str(e_stt)}")
+            else:
+                raise HTTPException(status_code=400, detail=f"Audio transcription failed: {str(e_stt)}")
 
     # 2. WebVTT (.vtt)
     elif filename.endswith(".vtt"):

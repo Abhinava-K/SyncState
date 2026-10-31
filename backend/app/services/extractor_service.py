@@ -165,6 +165,28 @@ class ExtractorService:
 
         return turns
 
+    def transcribe_audio_bytes(self, audio_bytes: bytes) -> List[DiarizedTurn]:
+        """
+        Transcribes audio bytes using Python SpeechRecognition engine over standard HTTPS REST.
+        Handles standard PCM WAV without requiring browser WebSockets.
+        """
+        import speech_recognition as sr
+        import io
+
+        r = sr.Recognizer()
+        buf = io.BytesIO(audio_bytes)
+        
+        try:
+            with sr.AudioFile(buf) as source:
+                audio_data = r.record(source)
+            text = r.recognize_google(audio_data)
+        except sr.UnknownValueError:
+            raise ValueError("No distinct speech detected in audio recording.")
+        except Exception as e:
+            raise ValueError(f"Audio transcription engine error: {str(e)}")
+
+        return self.parse_raw_text(text)
+
     async def transcribe_audio_with_gemini(self, audio_bytes: bytes, mime_type: str = "audio/wav") -> List[DiarizedTurn]:
         """
         Transcribes raw audio recording directly using Gemini Multimodal Audio API.
@@ -236,13 +258,14 @@ Rahul (Backend) (02:30): I will finish the Auth API by Thursday.
         question_pattern = r'(?:\?\s*$|^\s*(?:wait,\s*)?(?:what about|can we|could we|should we|how about|is it possible|did anyone|who has|are we|is there)\b)'
 
         manager_directive_patterns = [
-            # "Rahul, please build..." or "Sarah, you will run..." or "David, I need you to take ownership of..."
-            r'^(?:alright\s+|okay\s+|hey\s+)?([A-Z][a-z]+)[,:]\s+(?:please|can you|could you|i need you to|i want you to|you will(?:\s+also)?|you\'ll(?:\s+also)?|you are handling|take lead on|take ownership of)\s+(.+)',
-            # "Assigning X to Rahul" or "Assigning Rahul to X"
-            r'\b(?:assigning|assign)\s+([A-Z][a-z]+)\s+to\s+(.+)',
-            r'\b(?:assigning|assign)\s+(?:the\s+)?(.+?)\s+to\s+([A-Z][a-z]+)\b',
-            # "Rahul will handle / build / deliver..."
-            r'^([A-Z][a-z]+)\s+will\s+(?:also\s+)?(?:handle|build|deliver|lead|take ownership of|run|deploy|write)\s+(.+)'
+            # "Rahul, please build..." or "Sarah, you will run..." or "QA, please test..." or "David, I need you to..."
+            r'^(?:alright\s+|okay\s+|hey\s+)?([A-Za-z0-9_-]+)[,:]\s+(?:please|can you|could you|i need you to|i want you to|you will(?:\s+also)?|you\'ll(?:\s+also)?|you are handling|take lead on|take ownership of|run|handle)\s+(.+)',
+            # "Assigning to David: ..." or "Action item for Sarah: ..."
+            r'\b(?:assigning\s+to|action\s+item\s+for|task\s+for)\s+([A-Za-z0-9_-]+)[:,\s]+(.+)',
+            # "Assigning the payment gateway to Rahul by Friday"
+            r'\b(?:assigning|assign)\s+(?:the\s+)?(.+?)\s+to\s+([A-Za-z0-9_-]+)\b(?:\s+(?:by|on|before|until)\s+.+)?',
+            # "Rahul will handle / build / deliver..." or "QA will run..."
+            r'^([A-Za-z0-9_-]+)\s+will\s+(?:also\s+)?(?:handle|build|deliver|lead|take ownership of|run|deploy|write)\s+(.+)'
         ]
 
         action_patterns = [
@@ -311,12 +334,15 @@ Rahul (Backend) (02:30): I will finish the Auth API by Thursday.
                 if m_dir:
                     groups = m_dir.groups()
                     g1, g2 = groups[0].strip(), groups[1].strip()
-                    if re.match(r'^[A-Z][a-z]+$', g1):
-                        target_assignee = g1
-                        task_raw = g2
-                    elif re.match(r'^[A-Z][a-z]+$', g2):
+                    if re.match(r'^[A-Za-z0-9_-]+$', g2) and not re.match(r'^[A-Za-z0-9_-]+$', g1):
                         target_assignee = g2
                         task_raw = g1
+                    elif re.match(r'^[A-Za-z0-9_-]+$', g1):
+                        target_assignee = g1
+                        task_raw = g2
+                    else:
+                        target_assignee = g1
+                        task_raw = g2
                     matched_action = True
                     break
 
@@ -329,6 +355,8 @@ Rahul (Backend) (02:30): I will finish the Auth API by Thursday.
                         break
 
             if matched_action:
+                if target_assignee.lower() in ["speaker", "meeting audio", "unknown", ""]:
+                    target_assignee = "Engineering"
                 if not re.search(work_action_regex, task_raw, re.IGNORECASE):
                     continue
 
