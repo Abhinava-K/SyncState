@@ -27,7 +27,9 @@ export const ConflictDiffCard: React.FC<Props> = ({ conflict, onResolve, onHover
     TIMELINE_SLIP: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
     TECH_STACK_REVERSAL: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
     POLICY_REVERSAL: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-    OWNER_DISPUTE: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    OWNER_DISPUTE: 'bg-sky-500/10 text-sky-400 border-sky-500/30',
+    DEPENDENCY_DEADLOCK: 'bg-red-500/15 text-red-400 border-red-500/40 animate-pulse',
+    CONTRACT_INVERSION: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
   }[conflict.conflict_type] || 'bg-rose-500/10 text-rose-400 border-rose-500/30';
 
   return (
@@ -52,7 +54,7 @@ export const ConflictDiffCard: React.FC<Props> = ({ conflict, onResolve, onHover
             {conflict.resolved ? 'Conflict Resolved' : 'Contradiction Detected'}
           </span>
           <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${badgeColor}`}>
-            {conflict.conflict_type.replace('_', ' ')}
+            {conflict.conflict_type.replace(/_/g, ' ')}
           </span>
         </div>
         <div className="flex items-center space-x-2">

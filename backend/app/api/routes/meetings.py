@@ -1,7 +1,7 @@
 import uuid
 import json
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Header
 from typing import List, Dict, Any, Optional
 from app.database import db
 from app.schemas.payloads import (
@@ -19,19 +19,30 @@ from app.services.audit_service import audit_service
 
 router = APIRouter(prefix="/api/meetings", tags=["Meetings"])
 
-async def _process_turns_and_audit(meeting_id: str, title: str, date: str, turns: List[DiarizedTurn]) -> MeetingIngestResponse:
+def _resolve_ws_id(val: Any) -> str:
+    return val if isinstance(val, str) else "ws_default"
+
+async def _process_turns_and_audit(
+    meeting_id: str,
+    title: str,
+    date: str,
+    turns: List[DiarizedTurn],
+    workspace_id: str = "ws_default"
+) -> MeetingIngestResponse:
+    workspace_id = _resolve_ws_id(workspace_id)
     # 1. Save meeting record
     db.save_meeting(
         meeting_id=meeting_id,
         title=title,
         date=date,
-        turns=[t.model_dump() for t in turns]
+        turns=[t.model_dump() for t in turns],
+        workspace_id=workspace_id
     )
 
     # 2. Extract decisions & action items
     decisions, action_items = await extractor_service.extract_items(turns, meeting_id)
 
-    # 3. Vector embedding & Cross-meeting conflict audit
+    # 3. Vector embedding & Cross-meeting decision audit
     all_conflicts: List[ConflictRecord] = []
     decisions_to_store = []
 
@@ -41,13 +52,14 @@ async def _process_turns_and_audit(meeting_id: str, title: str, date: str, turns
         dec_dict["embedding"] = await memory_service.get_embedding(embed_text)
         decisions_to_store.append(dec_dict)
 
-        # Retrieve similar historical decisions from past meetings
+        # Retrieve similar historical decisions from past meetings in this workspace
         similar_past = await memory_service.search_similar_decisions(
             topic=dec.topic,
             statement=dec.statement,
             exclude_meeting_id=meeting_id,
             top_k=3,
-            threshold=0.50
+            threshold=0.50,
+            workspace_id=workspace_id
         )
 
         if similar_past:
@@ -58,11 +70,21 @@ async def _process_turns_and_audit(meeting_id: str, title: str, date: str, turns
             )
             all_conflicts.extend(conflicts)
 
-    # 4. Save to Database
-    db.save_decisions(decisions_to_store)
-    db.save_action_items([a.model_dump() for a in action_items])
+    # 4. Action Item Cross-Meeting Architectural Collisions (Dependency Deadlocks & Owner Disputes)
+    past_tasks = db.get_all_active_tasks(workspace_id=workspace_id)
+    candidate_action_dicts = [a.model_dump() for a in action_items]
+    action_conflicts = audit_service.audit_action_conflicts(
+        candidate_actions=candidate_action_dicts,
+        historical_actions=past_tasks,
+        meeting_id=meeting_id
+    )
+    all_conflicts.extend(action_conflicts)
+
+    # 5. Save to Database
+    db.save_decisions(decisions_to_store, workspace_id=workspace_id)
+    db.save_action_items(candidate_action_dicts, workspace_id=workspace_id)
     if all_conflicts:
-        db.save_conflicts([c.model_dump() for c in all_conflicts])
+        db.save_conflicts([c.model_dump() for c in all_conflicts], workspace_id=workspace_id)
 
     unresolved_count = sum(1 for c in all_conflicts if not c.resolved)
 
@@ -79,8 +101,12 @@ async def _process_turns_and_audit(meeting_id: str, title: str, date: str, turns
     )
 
 @router.post("/ingest", response_model=MeetingIngestResponse)
-async def ingest_meeting(payload: TranscriptIngestRequest):
+async def ingest_meeting(
+    payload: TranscriptIngestRequest,
+    x_workspace_id: Optional[str] = Header("ws_default")
+):
     meeting_id = f"meet_{uuid.uuid4().hex[:8]}"
+    ws_id = x_workspace_id or "ws_default"
 
     if payload.turns and len(payload.turns) > 0:
         turns = payload.turns
@@ -89,19 +115,17 @@ async def ingest_meeting(payload: TranscriptIngestRequest):
     else:
         raise HTTPException(status_code=400, detail="Either 'turns' or 'raw_text' must be provided.")
 
-    return await _process_turns_and_audit(meeting_id, payload.meeting_title, payload.date, turns)
+    return await _process_turns_and_audit(meeting_id, payload.meeting_title, payload.date, turns, workspace_id=ws_id)
 
 @router.post("/upload", response_model=MeetingIngestResponse)
 async def upload_meeting_file(
     file: UploadFile = File(...),
     meeting_title: str = Form(...),
-    date: str = Form(...)
+    date: str = Form(...),
+    x_workspace_id: Optional[str] = Header("ws_default")
 ):
-    """
-    Production file ingestion endpoint:
-    Supports .vtt (Zoom/Meet/Otter), .srt, .txt, .json, and audio (.wav, .mp3, .webm).
-    """
     meeting_id = f"meet_{uuid.uuid4().hex[:8]}"
+    ws_id = x_workspace_id or "ws_default"
     filename = (file.filename or "").lower()
     content_bytes = await file.read()
 
@@ -156,11 +180,12 @@ async def upload_meeting_file(
     if not turns:
         raise HTTPException(status_code=400, detail="Could not parse any speaker turns from uploaded file.")
 
-    return await _process_turns_and_audit(meeting_id, meeting_title, date, turns)
+    return await _process_turns_and_audit(meeting_id, meeting_title, date, turns, workspace_id=ws_id)
 
 @router.get("", response_model=List[Dict[str, Any]])
-async def list_meetings():
-    return db.list_meetings()
+async def list_meetings(x_workspace_id: Optional[str] = Header("ws_default")):
+    ws_id = _resolve_ws_id(x_workspace_id)
+    return db.list_meetings(workspace_id=ws_id)
 
 @router.get("/{meeting_id}", response_model=MeetingIngestResponse)
 async def get_meeting_details(meeting_id: str):
@@ -196,14 +221,16 @@ async def delete_meeting(meeting_id: str):
     return {"status": "success", "message": f"Meeting '{meeting['title']}' deleted successfully."}
 
 @router.get("/memory/ledger")
-async def get_decision_ledger():
+async def get_decision_ledger(x_workspace_id: Optional[str] = Header("ws_default")):
+    ws_id = _resolve_ws_id(x_workspace_id)
     with db.get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
         SELECT d.*, m.title as meeting_title, m.date as meeting_date 
         FROM decisions d 
         JOIN meetings m ON d.meeting_id = m.id 
+        WHERE d.workspace_id = ? OR d.workspace_id = 'ws_default'
         ORDER BY d.created_at DESC
-        """)
+        """, (ws_id,))
         rows = [dict(r) for r in cursor.fetchall()]
         return rows

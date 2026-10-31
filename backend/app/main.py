@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api.routes import meetings, staging, digests, settings as settings_route
+from app.api.routes import meetings, staging, digests, settings as settings_route, auth
 from app.services.extractor_service import extractor_service
 from app.services.memory_service import memory_service
 from app.services.audit_service import audit_service
@@ -24,6 +24,7 @@ app.add_middleware(
 )
 
 # Include Routers
+app.include_router(auth.router)
 app.include_router(meetings.router)
 app.include_router(staging.router)
 app.include_router(digests.router)

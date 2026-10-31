@@ -14,6 +14,8 @@ class ConflictType(str, Enum):
     TECH_STACK_REVERSAL = "TECH_STACK_REVERSAL"
     POLICY_REVERSAL = "POLICY_REVERSAL"
     OWNER_DISPUTE = "OWNER_DISPUTE"
+    DEPENDENCY_DEADLOCK = "DEPENDENCY_DEADLOCK"
+    CONTRACT_INVERSION = "CONTRACT_INVERSION"
 
 class DiarizedTurn(BaseModel):
     turn_index: int
@@ -129,4 +131,33 @@ class WeeklyDigestResponse(BaseModel):
     generated_at: str
     members: List[PersonDigest]
     markdown_summary: str
+
+class UserRegisterRequest(BaseModel):
+    email: str
+    name: str
+    password: str
+    organization_name: Optional[str] = "Engineering Org"
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+class WorkspaceInfo(BaseModel):
+    id: str
+    name: str
+    slug: str
+    role: str = "admin"
+
+class UserInfo(BaseModel):
+    id: str
+    email: str
+    name: str
+    avatar_url: Optional[str] = None
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserInfo
+    active_workspace: WorkspaceInfo
+    workspaces: List[WorkspaceInfo]
 

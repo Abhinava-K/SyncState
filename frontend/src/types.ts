@@ -39,7 +39,7 @@ export interface ConflictRecord {
   historical_statement: string;
   historical_quote: string;
   candidate_quote: string;
-  conflict_type: 'TIMELINE_SLIP' | 'TECH_STACK_REVERSAL' | 'POLICY_REVERSAL' | 'OWNER_DISPUTE';
+  conflict_type: 'TIMELINE_SLIP' | 'TECH_STACK_REVERSAL' | 'POLICY_REVERSAL' | 'OWNER_DISPUTE' | 'DEPENDENCY_DEADLOCK' | 'CONTRACT_INVERSION';
   reasoning: string;
   confidence: number;
   resolved: boolean;
@@ -105,5 +105,27 @@ export interface SettingsResponse {
   github_repo: string;
   linear_configured: boolean;
   integration_mode: string;
+}
+
+export interface UserInfo {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url?: string;
+}
+
+export interface WorkspaceInfo {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: UserInfo;
+  active_workspace: WorkspaceInfo;
+  workspaces: WorkspaceInfo[];
 }
 

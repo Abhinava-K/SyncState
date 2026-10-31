@@ -1,12 +1,22 @@
-import { MeetingIngestResponse, WeeklyDigestResponse, MeetingSummaryItem } from './types';
+import { MeetingIngestResponse, WeeklyDigestResponse, MeetingSummaryItem, AuthResponse, WorkspaceInfo } from './types';
 
 const API_BASE = '/api';
 
+export function getActiveWorkspaceId(): string {
+  return localStorage.getItem('syncstate_workspace_id') || 'ws_default';
+}
+
+export function setActiveWorkspaceId(workspaceId: string): void {
+  localStorage.setItem('syncstate_workspace_id', workspaceId);
+}
+
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const wsId = getActiveWorkspaceId();
   const res = await fetch(`${API_BASE}${url}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'X-Workspace-Id': wsId,
       ...(options?.headers || {}),
     },
   });
@@ -20,6 +30,26 @@ export async function fetchJson<T>(url: string, options?: RequestInit): Promise<
 }
 
 export const api = {
+  // Auth & Multi-Tenancy
+  login: (payload: { email: string; password: string }) =>
+    fetchJson<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  register: (payload: { email: string; name: string; password: string; organization_name?: string }) =>
+    fetchJson<AuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getMe: () => fetchJson<AuthResponse>('/auth/me'),
+
+  createWorkspace: (name: string) =>
+    fetchJson<WorkspaceInfo>(`/auth/workspaces?name=${encodeURIComponent(name)}`, {
+      method: 'POST',
+    }),
+
   // Reset database to clean slate
   resetData: () => fetchJson<{ status: string; message: string }>('/reset', { method: 'POST' }),
 
@@ -39,8 +69,12 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   uploadMeeting: async (formData: FormData): Promise<MeetingIngestResponse> => {
+    const wsId = getActiveWorkspaceId();
     const res = await fetch(`${API_BASE}/meetings/upload`, {
       method: 'POST',
+      headers: {
+        'X-Workspace-Id': wsId,
+      },
       body: formData,
     });
     if (!res.ok) {
@@ -85,4 +119,3 @@ export const api = {
   // Digests
   getWeeklyDigest: () => fetchJson<WeeklyDigestResponse>('/digests/weekly'),
 };
-

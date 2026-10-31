@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { api } from './api';
-import { MeetingIngestResponse, MeetingSummaryItem, WeeklyDigestResponse } from './types';
+import { api, setActiveWorkspaceId } from './api';
+import { MeetingIngestResponse, MeetingSummaryItem, WeeklyDigestResponse, UserInfo, WorkspaceInfo, AuthResponse } from './types';
 import { TranscriptViewer } from './components/TranscriptViewer';
 import { ConflictDiffCard } from './components/ConflictDiffCard';
 import { ActionItemRow } from './components/ActionItemRow';
@@ -9,6 +9,8 @@ import { WeeklyDigestModal } from './components/WeeklyDigestModal';
 import { DecisionLedgerModal } from './components/DecisionLedgerModal';
 import { IngestModal } from './components/IngestModal';
 import { SettingsModal } from './components/SettingsModal';
+import { LiveMeetingListenerModal } from './components/LiveMeetingListenerModal';
+import { AuthModal } from './components/AuthModal';
 import {
   Layers,
   Sparkles,
@@ -23,6 +25,9 @@ import {
   Zap,
   Trash2,
   Settings as SettingsIcon,
+  Mic,
+  Shield,
+  UserCheck,
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -36,18 +41,46 @@ export const App: React.FC = () => {
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [systemConfig, setSystemConfig] = useState<any>(null);
 
+  // User & Workspace multi-tenant state
+  const [currentUser, setCurrentUser] = useState<UserInfo | null>({
+    id: 'user_demo',
+    email: 'demo@syncstate.io',
+    name: 'Abhinava K (Architect)',
+  });
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceInfo | null>({
+    id: 'ws_default',
+    name: 'Core Engineering Team',
+    slug: 'core-eng',
+    role: 'admin',
+  });
+  const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>([]);
+
   // Modals
   const [showIngestModal, setShowIngestModal] = useState(false);
+  const [showLiveListenerModal, setShowLiveListenerModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDigestModal, setShowDigestModal] = useState(false);
   const [showLedgerModal, setShowLedgerModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [digestData, setDigestData] = useState<WeeklyDigestResponse | null>(null);
 
-  // Load meetings list on mount
+  // Load meetings list & profile on mount
   useEffect(() => {
+    loadUserProfile();
     refreshMeetings();
     loadConfig();
   }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      const auth = await api.getMe();
+      if (auth.user) setCurrentUser(auth.user);
+      if (auth.active_workspace) setActiveWorkspace(auth.active_workspace);
+      if (auth.workspaces) setWorkspaces(auth.workspaces);
+    } catch (e) {
+      console.error('Failed to load user profile', e);
+    }
+  };
 
   const loadConfig = async () => {
     try {
@@ -213,6 +246,14 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleAuthSuccess = (authData: AuthResponse) => {
+    setCurrentUser(authData.user);
+    setActiveWorkspace(authData.active_workspace);
+    setWorkspaces(authData.workspaces);
+    refreshMeetings();
+    showNotice('success', `Signed in as ${authData.user.name} (${authData.active_workspace.name})`);
+  };
+
   // Open Weekly Digest
   const handleOpenDigest = async () => {
     try {
@@ -264,6 +305,21 @@ export const App: React.FC = () => {
             )}
           </div>
 
+          {/* Multi-Tenant Workspace & Account Pill */}
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 hover:border-zinc-700 flex items-center space-x-1.5 transition-all shadow-sm"
+            title="Switch Workspace or Manage Team Account"
+          >
+            <Shield className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="font-semibold text-zinc-200 max-w-[130px] truncate">
+              {activeWorkspace?.name || 'Core Engineering'}
+            </span>
+            <span className="text-[10px] text-zinc-400 border-l border-zinc-700 pl-1.5">
+              {currentUser?.name?.split(' ')[0] || 'Architect'}
+            </span>
+          </button>
+
           <button
             onClick={handleResetData}
             className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-rose-950/40 text-zinc-400 hover:text-rose-300 border border-zinc-800 hover:border-rose-500/30 flex items-center space-x-1.5 transition-all"
@@ -304,6 +360,17 @@ export const App: React.FC = () => {
             title="Configure Gemini API & GitHub Credentials"
           >
             <SettingsIcon className="w-4 h-4 text-zinc-400 hover:text-zinc-200" />
+          </button>
+
+          {/* In-Meeting Live Voice Listener ($0.00 Free Tier) */}
+          <button
+            onClick={() => setShowLiveListenerModal(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 flex items-center space-x-1.5 transition-all shadow-sm active:scale-95"
+            title="Start $0.00 continuous speech recognition listener for live meeting calls"
+          >
+            <Mic className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+            <span>Live Listener</span>
+            <span className="text-[9px] font-mono uppercase bg-rose-500/30 text-rose-200 px-1 py-0.2 rounded">$0.00</span>
           </button>
 
           <button
@@ -561,6 +628,23 @@ export const App: React.FC = () => {
       </div>
 
       {/* MODALS */}
+      {showLiveListenerModal && (
+        <LiveMeetingListenerModal
+          onClose={() => setShowLiveListenerModal(false)}
+          onIngestSuccess={(meetingId) => {
+            refreshMeetings(meetingId);
+            showNotice('success', 'Live meeting audio ingested! Cross-meeting audit completed.');
+          }}
+        />
+      )}
+
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onAuthSuccess={handleAuthSuccess}
+        />
+      )}
+
       {showIngestModal && (
         <IngestModal
           onClose={() => setShowIngestModal(false)}

@@ -81,7 +81,8 @@ class MemoryService:
         statement: str,
         exclude_meeting_id: Optional[str] = None,
         top_k: int = 3,
-        threshold: float = 0.50
+        threshold: float = 0.50,
+        workspace_id: str = "ws_default"
     ) -> List[Dict[str, Any]]:
         """
         Hybrid retrieval combining topic domain matching and dense semantic vector similarity.
@@ -89,7 +90,7 @@ class MemoryService:
         query_text = f"Topic: {topic}. Statement: {statement}"
         query_vec = await self.get_embedding(query_text)
         
-        past_decisions = db.get_all_active_decisions(exclude_meeting_id=exclude_meeting_id)
+        past_decisions = db.get_all_active_decisions(exclude_meeting_id=exclude_meeting_id, workspace_id=workspace_id)
         scored_candidates = []
 
         for dec in past_decisions:
