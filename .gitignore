@@ -47,13 +47,13 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Internal brainstorm & prompt documentation
-problem.md
-product-brainstorming.md
-PRODUCT_REQUIREMENTS_AND_REAL_DATA.md
+# Markdown files (ignore ALL except README.md)
+*.md
+!README.md
+!readme.md
 
-# Agent runner internal proxies
-powershell.bat
-powershell.cmd
+# Shell & Batch scripts
+*.bat
+*.cmd
 *.ps1
 .system_generated/

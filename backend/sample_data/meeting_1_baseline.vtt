@@ -1,0 +1,22 @@
+WEBVTT
+
+00:01:10.000 --> 00:01:18.000
+<v Alex (Tech Lead)>We chose PostgreSQL for our database architecture and we are completely standardizing on it.</v>
+
+00:02:30.000 --> 00:02:38.000
+<v Alex (Tech Lead)>Our hard release freeze deadline is set for November 15th to allow two full weeks of QA testing.</v>
+
+00:03:45.000 --> 00:03:55.000
+<v Rahul (Backend)>I will build and deliver the Stripe webhook integration and payment gateway by Friday.</v>
+
+00:04:30.000 --> 00:04:40.000
+<v Alex (Tech Lead)>We decided that all internal microservices will use REST JSON endpoints with strict OpenAPI contracts.</v>
+
+00:05:15.000 --> 00:05:25.000
+<v Rahul (Backend)>I am taking ownership of the user auth and JWT session migration by Thursday.</v>
+
+00:06:00.000 --> 00:06:10.000
+<v Rahul (Backend)>I will deploy the user profile API endpoint by Monday.</v>
+
+00:07:00.000 --> 00:07:10.000
+<v Priya (Product Lead)>Our team policy is to require MFA login for all administrative user accounts.</v>

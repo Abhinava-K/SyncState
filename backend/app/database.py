@@ -334,7 +334,7 @@ class Database:
             SELECT d.*, m.title as meeting_title, m.date as meeting_date 
             FROM decisions d 
             JOIN meetings m ON d.meeting_id = m.id 
-            WHERE d.status = 'ACTIVE' AND (d.workspace_id = ? OR d.workspace_id = 'ws_default')
+            WHERE d.status = 'ACTIVE' AND d.workspace_id = ?
             """
             params = [workspace_id]
             if exclude_meeting_id:
@@ -411,7 +411,7 @@ class Database:
             SELECT a.*, m.title as meeting_title 
             FROM action_items a 
             JOIN meetings m ON a.meeting_id = m.id 
-            WHERE a.workspace_id = ? OR a.workspace_id = 'ws_default'
+            WHERE a.workspace_id = ?
             ORDER BY a.deadline ASC
             """, (workspace_id,))
             rows = cursor.fetchall()

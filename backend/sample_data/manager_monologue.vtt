@@ -1,0 +1,26 @@
+WEBVTT
+
+00:00:05.000 --> 00:00:15.000
+<v Sam (Engineering Manager)>Good morning everyone. I'm going to run through this week's key decisions and work assignments.</v>
+
+00:00:16.000 --> 00:00:28.000
+<v Sam (Engineering Manager)>First, for our database architecture, we decided to stick with MongoDB for the next 6 months to avoid schema migration delays.</v>
+
+00:00:30.000 --> 00:00:42.000
+<v Sam (Engineering Manager)>Second, marketing has moved up the launch, so our target release freeze is now November 5th.</v>
+
+00:00:44.000 --> 00:00:55.000
+<v Sam (Engineering Manager)>David, I need you to take ownership of the user auth and JWT session migration by next week.</v>
+
+00:00:57.000 --> 00:01:08.000
+<v Sam (Engineering Manager)>Sarah, you will run performance load testing on the checkout payment flow on Tuesday.</v>
+
+00:01:10.000 --> 00:01:20.000
+<v Sam (Engineering Manager)>Maya, please design the dark mode Tailwind CSS theme for the marketing landing page by Friday.</v>
+
+00:01:22.000 --> 00:01:32.000
+<v Sam (Engineering Manager)>Rahul, you will also add rate limiting to the login endpoint by Wednesday.</v>
+
+00:01:34.000 --> 00:01:40.000
+<v Sam (Engineering Manager)>Alright, that's everything for today's sync. Let's get to work.</v>
+

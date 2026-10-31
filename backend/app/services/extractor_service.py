@@ -142,8 +142,8 @@ class ExtractorService:
                 turn_idx += 1
                 continue
 
-            # Pattern 3: Rahul: text
-            m3 = re.match(r'^([A-Za-z0-9\s]+?)\s*:\s*(.+)$', line)
+            # Pattern 3: Rahul: text or Sam (Engineering Manager): text
+            m3 = re.match(r'^([A-Za-z0-9\s\(\)]+?)\s*:\s*(.+)$', line)
             if m3:
                 turns.append(DiarizedTurn(
                     turn_index=turn_idx,
@@ -227,77 +227,140 @@ Rahul (Backend) (02:30): I will finish the Auth API by Thursday.
         action_items: List[ExtractedActionItem] = []
 
         decision_patterns = [
-            (r'\b(?:we chose|we decided|let\'s agree|agreed on|we are adopting|we will use|decision is|standardize on)\b\s*(.+)', "Architecture"),
-            (r'\b(?:migrate to|drop|switch to|stick with|sticking with)\b\s*(.+)', "Database Architecture"),
-            (r'\b(?:freeze|release|launch date|deadline is set for|scheduled for)\b\s*(.+)', "Release Timeline"),
+            (r'\b(?:we chose|we decided|let\'s agree|agreed on|we are adopting|we will use|will use|decision is|standardize on|consensus is|agreed to)\b\s*(.+)', "Architecture"),
+            (r'\b(?:migrate to|drop|switch to|stick with|sticking with|introduce\s+\w+\s+as)\b\s*(.+)', "Database Architecture"),
+            (r'\b(?:(?:hard\s+)?release freeze|freeze deadline|target release freeze|deadline is set for|launch date is|descope\s+.+?\bto protect\b)\b\s*(.+)', "Release Timeline"),
             (r'\b(?:policy|pricing is|no longer allow|team policy)\b\s*(.+)', "Company Policy")
         ]
 
+        question_pattern = r'(?:\?\s*$|^\s*(?:wait,\s*)?(?:what about|can we|could we|should we|how about|is it possible|did anyone|who has|are we|is there)\b)'
+
+        manager_directive_patterns = [
+            # "Rahul, please build..." or "Sarah, you will run..." or "David, I need you to take ownership of..."
+            r'^(?:alright\s+|okay\s+|hey\s+)?([A-Z][a-z]+)[,:]\s+(?:please|can you|could you|i need you to|i want you to|you will(?:\s+also)?|you\'ll(?:\s+also)?|you are handling|take lead on|take ownership of)\s+(.+)',
+            # "Assigning X to Rahul" or "Assigning Rahul to X"
+            r'\b(?:assigning|assign)\s+([A-Z][a-z]+)\s+to\s+(.+)',
+            r'\b(?:assigning|assign)\s+(?:the\s+)?(.+?)\s+to\s+([A-Z][a-z]+)\b',
+            # "Rahul will handle / build / deliver..."
+            r'^([A-Z][a-z]+)\s+will\s+(?:also\s+)?(?:handle|build|deliver|lead|take ownership of|run|deploy|write)\s+(.+)'
+        ]
+
         action_patterns = [
-            r'\b(?:i will|i\'ll|i can|will handle|taking ownership of|i am building|i\'ll finish|assigned to)\b\s*(.+)',
+            r'\b(?:i will(?:\s+also)?|i\'ll(?:\s+also)?|i can(?:\s+also)?|will handle|taking ownership of|i am taking ownership of|i am building|i\'ll finish|assigned to)\b\s*(.+)',
             r'\b(?:please finish|can you finish|take lead on|action item:)\b\s*(.+)'
         ]
 
-        deadline_regex = r'\b(?:by|before|on|until)\s+([A-Za-z0-9\s,]*?(?:th|st|nd|rd|\d{4}|tomorrow|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|october|november|december))\b'
+        action_lead_regex = r'^(?:.*?\b(?:i will(?:\s+also)?|i\'ll(?:\s+also)?|i can(?:\s+also)?|will handle|taking ownership of|i am taking ownership of|i am building|i\'ll finish|assigned to|let\'s have|please|can you|could you|i need you to|i want you to|you will(?:\s+also)?|you\'ll(?:\s+also)?)\b\s*)'
+        deadline_pattern = r'\b(?:by|before|until|due(?:\s+on)?|scheduled\s+for|on)\s+((?:next\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|tonight|eod|end\s+of\s+day|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)|next\s+week))\b'
+        work_action_regex = r'\b(?:build\w*|deliver\w*|implement\w*|develop\w*|create\w*|migrat\w*|integrat\w*|test\w*|deploy\w*|benchmark\w*|refactor\w*|design\w*|configure\w*|setup|write\w*|add\w*|own\w*|taking\s+ownership|take\s+ownership|run\w*|push\s+back)\b'
 
         for turn in turns:
             text = turn.text
             speaker = turn.speaker
 
-            # 1. Check for Decisions
-            for pat, default_topic in decision_patterns:
-                m = re.search(pat, text, re.IGNORECASE)
-                if m:
-                    topic = default_topic
-                    stmt = text
-                    t_lower = text.lower()
-                    if "postgres" in t_lower or "mongo" in t_lower or "database" in t_lower:
-                        topic = "Database Architecture"
-                    elif "release" in t_lower or "freeze" in t_lower or "launch" in t_lower or "date" in t_lower:
-                        topic = "Release Timeline"
-                    elif "auth" in t_lower or "security" in t_lower:
-                        topic = "Auth & Security"
-                    
-                    decisions.append(ExtractedDecision(
-                        id=f"dec_{uuid.uuid4().hex[:8]}",
-                        meeting_id=meeting_id,
-                        topic=topic,
-                        statement=stmt,
-                        speaker=speaker,
-                        turn_index=turn.turn_index,
-                        verbatim_quote=text,
-                        status=DecisionStatus.ACTIVE
-                    ))
+            # 1. Check for Decisions (Sentence-level resolution, filtering out interrogatives and conversational chatter)
+            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+            for sent in sentences:
+                if re.search(question_pattern, sent, re.IGNORECASE):
+                    continue
+
+                for pat, default_topic in decision_patterns:
+                    m = re.search(pat, sent, re.IGNORECASE)
+                    if m:
+                        clean_stmt = sent
+                        clean_stmt = re.sub(
+                            r'^(?:(?:first|second|next)\s+big\s+item:?\s*|no,?\s+we\s+can\'t\s+do\s+that\.?\s*|given\s+.*?,?\s*so\s+|sam\s+was\s+asking\s+.*?,?\s*but\s+|we\s+committed\s+to\s+engineering\s+that\s+)',
+                            '', clean_stmt, flags=re.IGNORECASE
+                        ).strip()
+                        if clean_stmt:
+                            clean_stmt = clean_stmt[0].upper() + clean_stmt[1:]
+
+                        t_lower = sent.lower()
+                        topic = default_topic
+                        if "postgres" in t_lower or "mongo" in t_lower or "database" in t_lower or "redis" in t_lower:
+                            topic = "Database Architecture"
+                        elif "release" in t_lower or "freeze" in t_lower or "launch" in t_lower or "date" in t_lower or "descope" in t_lower:
+                            topic = "Release Timeline"
+                        elif "auth" in t_lower or "security" in t_lower or "mfa" in t_lower:
+                            topic = "Company Policy" if "policy" in t_lower else "Auth & Security"
+                        elif "rest" in t_lower or "grpc" in t_lower or "graphql" in t_lower or "api" in t_lower:
+                            topic = "API Architecture"
+
+                        decisions.append(ExtractedDecision(
+                            id=f"dec_{uuid.uuid4().hex[:8]}",
+                            meeting_id=meeting_id,
+                            topic=topic,
+                            statement=clean_stmt or sent,
+                            speaker=speaker,
+                            turn_index=turn.turn_index,
+                            verbatim_quote=sent,
+                            status=DecisionStatus.ACTIVE
+                        ))
+                        break
+                if any(d.turn_index == turn.turn_index for d in decisions):
                     break
 
-            # 2. Check for Action Items
-            for pat in action_patterns:
-                m = re.search(pat, text, re.IGNORECASE)
-                if m:
-                    deadline = None
-                    dm = re.search(deadline_regex, text, re.IGNORECASE)
-                    if dm:
-                        deadline = dm.group(1).strip()
-                    else:
-                        deadline = "Next Sprint"
+            # 2. Check for Action Items (Supports both Peer Commitments and Manager Monologue Directives)
+            matched_action = False
+            target_assignee = speaker.split("(")[0].strip()
+            task_raw = text
 
-                    assignee = speaker.split("(")[0].strip()
-                    task_desc = text
-                    if len(task_desc) > 90:
-                        task_desc = task_desc[:87] + "..."
-
-                    action_items.append(ExtractedActionItem(
-                        id=f"act_{uuid.uuid4().hex[:8]}",
-                        meeting_id=meeting_id,
-                        task=task_desc,
-                        assignee=assignee,
-                        deadline=deadline,
-                        priority="high" if "freeze" in text.lower() or "urgent" in text.lower() else "medium",
-                        turn_index=turn.turn_index,
-                        verbatim_quote=text,
-                        is_approved=True
-                    ))
+            # 2a. Check if Manager is assigning to a named person ("Rahul, please build...", "Assigning David to...")
+            for pat in manager_directive_patterns:
+                m_dir = re.search(pat, text, re.IGNORECASE)
+                if m_dir:
+                    groups = m_dir.groups()
+                    g1, g2 = groups[0].strip(), groups[1].strip()
+                    if re.match(r'^[A-Z][a-z]+$', g1):
+                        target_assignee = g1
+                        task_raw = g2
+                    elif re.match(r'^[A-Z][a-z]+$', g2):
+                        target_assignee = g2
+                        task_raw = g1
+                    matched_action = True
                     break
+
+            # 2b. Check if speaker is committing self ("I will build...")
+            if not matched_action and not text.strip().endswith('?'):
+                for pat in action_patterns:
+                    if re.search(pat, text, re.IGNORECASE):
+                        matched_action = True
+                        task_raw = text
+                        break
+
+            if matched_action:
+                if not re.search(work_action_regex, task_raw, re.IGNORECASE):
+                    continue
+
+                clean_task = re.sub(action_lead_regex, '', task_raw, flags=re.IGNORECASE).strip()
+                clean_task = re.sub(r'^(?:also\s+)', '', clean_task, flags=re.IGNORECASE).strip()
+                if re.search(r'\b(?:taking ownership of|take ownership of)\b', task_raw, re.IGNORECASE) and not clean_task.lower().startswith("take ownership"):
+                    clean_task = "Take ownership of " + clean_task
+
+                deadline = "Next Sprint"
+                dms = list(re.finditer(deadline_pattern, clean_task, re.IGNORECASE))
+                if dms:
+                    chosen_dm = dms[-1]
+                    deadline = chosen_dm.group(1).strip()
+                    clean_task = clean_task[:chosen_dm.start()].strip()
+
+                clean_task = clean_task.rstrip(".,;? ")
+                if clean_task:
+                    clean_task = clean_task[0].upper() + clean_task[1:]
+
+                action_items.append(ExtractedActionItem(
+                    id=f"act_{uuid.uuid4().hex[:8]}",
+                    meeting_id=meeting_id,
+                    task=clean_task,
+                    assignee=target_assignee,
+                    deadline=deadline,
+                    priority="high" if "freeze" in text.lower() or "urgent" in text.lower() else "medium",
+                    turn_index=turn.turn_index,
+                    verbatim_quote=text,
+                    is_approved=True
+                ))
+
+        return decisions, action_items
 
         return decisions, action_items
 

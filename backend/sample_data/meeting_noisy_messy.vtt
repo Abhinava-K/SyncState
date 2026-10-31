@@ -1,0 +1,74 @@
+WEBVTT
+
+00:00:10.000 --> 00:00:15.000
+<v Alex (Tech Lead)>Hey, good morning everyone. Can you hear me alright?</v>
+
+00:00:16.000 --> 00:00:22.000
+<v Sarah (QA)>Morning Alex! Yeah, loud and clear. My AirPods were acting up earlier but seems fine now.</v>
+
+00:00:23.000 --> 00:00:30.000
+<v Rahul (Backend)>Hey guys. Sorry I was a couple of minutes late, the coffee machine on the 3rd floor was overflowing again haha.</v>
+
+00:00:31.000 --> 00:00:38.000
+<v Alex (Tech Lead)>Haha no worries. Just waiting on Priya... oh wait, she just pinged on Slack, her Zoom is updating.</v>
+
+00:00:40.000 --> 00:00:48.000
+<v Priya (Product Lead)>Hey team! Sorry about that, macOS forced a restart right as I clicked join. Did I miss anything?</v>
+
+00:00:49.000 --> 00:00:54.000
+<v Alex (Tech Lead)>Nope, we were just shooting the breeze. Alright, let's jump into the sprint agenda.</v>
+
+00:01:10.000 --> 00:01:22.000
+<v Alex (Tech Lead)>First big item: we need to settle the database discussion from yesterday. Sam was asking about document stores, but we decided to standardize on PostgreSQL for all relational storage and primary user records.</v>
+
+00:01:23.000 --> 00:01:29.000
+<v Rahul (Backend)>Yeah, 100% agreed. Relational constraints will save us a ton of headaches once we start adding billing tables.</v>
+
+00:01:40.000 --> 00:01:50.000
+<v Alex (Tech Lead)>Speaking of billing... who has bandwidth to take the Stripe webhook integration and payment gateway?</v>
+
+00:01:52.000 --> 00:02:00.000
+<v Rahul (Backend)>Um, so I'm currently finishing up the JWT token migration by Wednesday afternoon...</v>
+
+00:02:01.000 --> 00:02:08.000
+<v Alex (Tech Lead)>Could you pick it up right after? QA needs the webhook endpoints ready before the staging deployment next week.</v>
+
+00:02:10.000 --> 00:02:19.000
+<v Rahul (Backend)>Yeah, that works. I will build and deliver the Stripe webhook integration and payment gateway by Friday.</v>
+
+00:02:20.000 --> 00:02:24.000
+<v Alex (Tech Lead)>Awesome, thanks Rahul. That keeps us right on track.</v>
+
+00:02:35.000 --> 00:02:42.000
+<v Priya (Product Lead)>Wait, what about the release freeze? Marketing was asking if we could pull it forward to early November.</v>
+
+00:02:43.000 --> 00:02:56.000
+<v Alex (Tech Lead)>No, we can't do that. We committed to engineering that our hard release freeze deadline is set for November 15th to allow two full weeks of QA testing.</v>
+
+00:02:57.000 --> 00:03:03.000
+<v Priya (Product Lead)>Fair enough. I will push back on marketing and hold the November 15th milestone.</v>
+
+00:03:15.000 --> 00:03:22.000
+<v Alex (Tech Lead)>Sarah, once Rahul delivers the payment webhooks, can you jump on the performance benchmarks?</v>
+
+00:03:23.000 --> 00:03:33.000
+<v Sarah (QA)>Yes, my regression suite wraps up on Monday, so I can run performance load testing on the checkout flow before Tuesday.</v>
+
+00:03:34.000 --> 00:03:40.000
+<v Alex (Tech Lead)>Great. Wait, did anyone see that email from DevOps about the Redis cluster restart?</v>
+
+00:03:41.000 --> 00:03:46.000
+<v Rahul (Backend)>Yeah, false alarm, that was just routine staging maintenance.</v>
+
+00:03:47.000 --> 00:03:52.000
+<v Alex (Tech Lead)>Phew, okay. Anyone have anything else before we wrap up? I know everyone has back-to-backs today.</v>
+
+00:03:53.000 --> 00:03:58.000
+<v Sarah (QA)>All good on my side!</v>
+
+00:03:59.000 --> 00:04:04.000
+<v Priya (Product Lead)>Good here. Thanks everyone, talk later!</v>
+
+00:04:05.000 --> 00:04:10.000
+<v Alex (Tech Lead)>Thanks folks, have a productive sprint. Bye!</v>
+

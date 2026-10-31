@@ -148,8 +148,15 @@ class AuditService:
         cand_has_timeline = any(k in cand_stmt for k in timeline_keywords)
 
         if hist_has_timeline and cand_has_timeline:
-            dates_cand = re.findall(r'(?:nov(?:ember)?|oct(?:ober)?|dec(?:ember)?|jan(?:uary)?|\b\d{1,2}(?:st|nd|rd|th)?)\s*\d{0,4}', cand_stmt)
-            dates_hist = re.findall(r'(?:nov(?:ember)?|oct(?:ober)?|dec(?:ember)?|jan(?:uary)?|\b\d{1,2}(?:st|nd|rd|th)?)\s*\d{0,4}', hist_stmt)
+            def extract_normalized_dates(text: str) -> List[str]:
+                matches = re.findall(r'\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\b', text.lower())
+                results = []
+                for m, d in matches:
+                    results.append(f"{m[:3]} {int(d)}")
+                return results
+
+            dates_cand = extract_normalized_dates(cand_stmt)
+            dates_hist = extract_normalized_dates(hist_stmt)
             
             if dates_cand and dates_hist and dates_cand != dates_hist:
                 return ConflictRecord(
@@ -214,10 +221,11 @@ class AuditService:
         domain_clusters = [
             ("payments", {"checkout", "payment", "stripe", "billing"}),
             ("auth", {"auth", "jwt", "session", "login", "oauth"}),
-            ("database", {"database", "postgres", "mongodb", "schema", "migration"}),
+            ("database", {"database", "postgres", "mongodb", "schema", "sql"}),
             ("api", {"api", "endpoint", "rest", "grpc", "graphql"}),
             ("analytics", {"analytics", "telemetry", "metrics"})
         ]
+        cluster_words_dict = dict(domain_clusters)
 
         def get_clusters(text: str) -> set:
             found = set()
@@ -260,7 +268,7 @@ class AuditService:
                 if not common_clusters:
                     continue
 
-                cluster_label = list(common_clusters)[0]
+                cluster_label = max(common_clusters, key=lambda c: sum(1 for w in cluster_words_dict[c] if w in cand_task or w in hist_task))
 
                 # 1. Dependency Deadlock Detection
                 hist_is_prereq = bool(re.search(r'\b(build\w*|finish\w*|deliver\w*|implement\w*|develop\w*|create\w*|migrat\w*|integrat\w*)\b', hist_task))
@@ -290,7 +298,9 @@ class AuditService:
 
                 # 2. Ownership Dispute Detection
                 if cand_assignee and hist_assignee and cand_assignee.lower() != hist_assignee.lower():
-                    if is_prerequisite or ("auth" in common_clusters):
+                    cand_is_owner = bool(re.search(r'\b(ownership|lead|migration|deliver|build|implement)\b', cand_task))
+                    hist_is_owner = bool(re.search(r'\b(ownership|lead|migration|deliver|build|implement)\b', hist_task))
+                    if cand_is_owner and hist_is_owner and not is_downstream and not bool(re.search(r'\b(test\w*|qa)\b', cand_task)):
                         conflicts.append(ConflictRecord(
                             id=f"conf_{uuid.uuid4().hex[:8]}",
                             meeting_id=meeting_id,
