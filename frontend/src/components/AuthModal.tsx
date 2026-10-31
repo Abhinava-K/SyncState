@@ -230,3 +230,4 @@ export const AuthModal: React.FC<Props> = ({ onClose, onAuthSuccess }) => {
     </div>
   );
 };
+

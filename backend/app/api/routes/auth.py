@@ -84,3 +84,4 @@ async def create_new_workspace(
 ):
     ws = db.create_workspace(name, x_user_id or "user_demo")
     return WorkspaceInfo(**ws)
+
