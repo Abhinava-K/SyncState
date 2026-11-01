@@ -10,15 +10,32 @@ export function setActiveWorkspaceId(workspaceId: string): void {
   localStorage.setItem('syncstate_workspace_id', workspaceId);
 }
 
+export function getStoredUserId(): string | null {
+  const userStr = localStorage.getItem('syncstate_user');
+  if (!userStr) return null;
+  try {
+    const user = JSON.parse(userStr);
+    return user.id || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const wsId = getActiveWorkspaceId();
+  const userId = getStoredUserId();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Workspace-Id': wsId,
+    ...(options?.headers as Record<string, string> || {}),
+  };
+  if (userId) {
+    headers['X-User-Id'] = userId;
+  }
+
   const res = await fetch(`${API_BASE}${url}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Workspace-Id': wsId,
-      ...(options?.headers || {}),
-    },
+    headers,
   });
 
   if (!res.ok) {

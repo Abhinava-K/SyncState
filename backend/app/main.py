@@ -129,7 +129,28 @@ async def seed_demo_data():
         "seeded_meeting_id": m1_id
     }
 
+def free_port(port: int = 8000):
+    """
+    On Windows, automatically free port 8000 if an orphaned process or background task
+    is holding the socket, preventing [WinError 10013] / [Errno 10048].
+    """
+    import sys, subprocess, os
+    if sys.platform == "win32":
+        try:
+            current_pid = os.getpid()
+            cmd = f'netstat -ano | findstr :{port}'
+            out = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode(errors="ignore")
+            for line in out.strip().split("\n"):
+                parts = line.strip().split()
+                if len(parts) >= 5 and "LISTENING" in parts:
+                    pid = int(parts[-1])
+                    if pid != current_pid and pid > 0:
+                        subprocess.run(f'taskkill /F /T /PID {pid}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    free_port(8000)
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
 

@@ -51,30 +51,38 @@ async def login(payload: UserLoginRequest):
 
 @router.get("/me", response_model=AuthResponse)
 async def get_current_user_profile(
-    x_workspace_id: Optional[str] = Header("ws_default")
+    x_user_id: Optional[str] = Header(None),
+    x_workspace_id: Optional[str] = Header(None)
 ):
     """
-    Returns current profile. Defaults to pre-seeded enterprise architect demo account.
+    Returns the profile for the authenticated user session.
+    Requires X-User-Id header from logged-in client.
     """
-    # Demo profile fallback
-    workspaces = [
-        WorkspaceInfo(id="ws_default", name="Core Engineering Team", slug="core-eng", role="admin")
-    ]
-    user_info = UserInfo(
-        id="user_demo",
-        email="demo@syncstate.io",
-        name="Abhinava K (Architect)",
-        avatar_url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop"
-    )
+    if not x_user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Please sign in or register an account."
+        )
 
-    active_ws = next((w for w in workspaces if w.id == x_workspace_id), workspaces[0])
+    session = db.get_user_by_id(x_user_id)
+    if not session:
+        raise HTTPException(
+            status_code=401,
+            detail="Session not found. Please log in again."
+        )
+
+    active_ws = session["active_workspace"]
+    if x_workspace_id:
+        matching = next((w for w in session["workspaces"] if w["id"] == x_workspace_id), None)
+        if matching:
+            active_ws = matching
 
     return AuthResponse(
-        access_token="tok_demo_active_session",
+        access_token=f"tok_{x_user_id}",
         token_type="bearer",
-        user=user_info,
-        active_workspace=active_ws,
-        workspaces=workspaces
+        user=UserInfo(**session["user"]),
+        active_workspace=WorkspaceInfo(**active_ws),
+        workspaces=[WorkspaceInfo(**w) for w in session["workspaces"]]
     )
 
 @router.post("/workspaces", response_model=WorkspaceInfo)

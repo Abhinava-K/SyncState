@@ -31,10 +31,13 @@ import {
   Activity,
   ArrowUpRight
 } from 'lucide-react';
+import { UserInfo } from '../types';
 
 interface Props {
-  onEnterApp: () => void;
+  onNavigate: (path: string) => void;
+  onEnterApp?: () => void;
   onOpenLiveListener?: () => void;
+  currentUser?: UserInfo | null;
 }
 
 type ScenarioKey = 'stack' | 'deadlock' | 'ownership';
@@ -59,8 +62,18 @@ interface ScenarioData {
   linearTeam: string;
 }
 
-export const LandingPage: React.FC<Props> = ({ onEnterApp, onOpenLiveListener }) => {
+export const LandingPage: React.FC<Props> = ({ onNavigate, onEnterApp, onOpenLiveListener, currentUser }) => {
   const [activeEdgeTab, setActiveEdgeTab] = useState<'collisions' | 'compatible'>('collisions');
+  
+  const handleTryApp = () => {
+    if (onEnterApp) {
+      onEnterApp();
+    } else if (currentUser) {
+      onNavigate('/app');
+    } else {
+      onNavigate('/auth');
+    }
+  };
   
   // Interactive Simulation State (Linear & Resend animated workflow)
   const [activeScenario, setActiveScenario] = useState<ScenarioKey>('stack');
@@ -330,11 +343,29 @@ export const LandingPage: React.FC<Props> = ({ onEnterApp, onOpenLiveListener })
               </button>
             )}
 
+            {currentUser ? (
+              <button
+                onClick={() => onNavigate('/app')}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-750 text-zinc-200 text-xs font-medium transition"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="truncate max-w-[110px]">{currentUser.name.split(' ')[0]}</span>
+                <span className="text-[10px] text-indigo-400 font-mono">App →</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => onNavigate('/auth')}
+                className="text-xs text-zinc-300 hover:text-white px-3 py-1.5 rounded-xl hover:bg-zinc-900 transition font-medium"
+              >
+                Sign In
+              </button>
+            )}
+
             <button
-              onClick={onEnterApp}
+              onClick={handleTryApp}
               className="flex items-center space-x-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 ring-1 ring-white/20 transition active:scale-95 group"
             >
-              <span>Launch App</span>
+              <span>{currentUser ? 'Open App' : 'Try Free'}</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
@@ -373,10 +404,10 @@ export const LandingPage: React.FC<Props> = ({ onEnterApp, onOpenLiveListener })
           {/* Hero Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto mb-14">
             <button
-              onClick={onEnterApp}
+              onClick={handleTryApp}
               className="w-full sm:w-auto flex items-center justify-center space-x-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-xl shadow-indigo-600/30 ring-1 ring-white/20 transition-all active:scale-95 group"
             >
-              <span>Try the App Free</span>
+              <span>{currentUser ? 'Open App Console' : 'Try the App Free'}</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
 
@@ -810,7 +841,7 @@ export const LandingPage: React.FC<Props> = ({ onEnterApp, onOpenLiveListener })
                     </div>
                     
                     <button
-                      onClick={onEnterApp}
+                      onClick={handleTryApp}
                       className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition shrink-0 ml-2"
                     >
                       Open Live Console
@@ -1094,10 +1125,10 @@ export const LandingPage: React.FC<Props> = ({ onEnterApp, onOpenLiveListener })
               {/* Big Bottom Action Button */}
               <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button
-                  onClick={onEnterApp}
+                  onClick={handleTryApp}
                   className="w-full sm:w-auto flex items-center justify-center space-x-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-base shadow-2xl shadow-indigo-600/40 ring-1 ring-white/20 transition-all active:scale-95 group"
                 >
-                  <span>Try SyncState Platform Free</span>
+                  <span>{currentUser ? 'Open SyncState Workspace' : 'Try SyncState Platform Free'}</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
@@ -1128,7 +1159,10 @@ export const LandingPage: React.FC<Props> = ({ onEnterApp, onOpenLiveListener })
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>All Governance Systems Operational</span>
             </span>
-            <button onClick={onEnterApp} className="hover:text-zinc-200 transition">
+            <button onClick={() => onNavigate('/auth')} className="hover:text-zinc-200 transition">
+              Sign In / Sign Up
+            </button>
+            <button onClick={handleTryApp} className="hover:text-zinc-200 transition">
               Launch App Console
             </button>
           </div>

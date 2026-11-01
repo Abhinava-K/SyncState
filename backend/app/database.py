@@ -226,6 +226,22 @@ class Database:
                 "workspaces": workspaces
             }
 
+    def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, email, name, avatar_url FROM users WHERE id = ?", (user_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            user_data = dict(row)
+            workspaces = self.get_user_workspaces(user_id)
+            active_ws = workspaces[0] if workspaces else {"id": "ws_default", "name": "Default Workspace", "slug": "default", "role": "admin"}
+            return {
+                "user": user_data,
+                "active_workspace": active_ws,
+                "workspaces": workspaces
+            }
+
     def get_user_workspaces(self, user_id: str) -> List[Dict[str, Any]]:
         with self.get_connection() as conn:
             cursor = conn.cursor()

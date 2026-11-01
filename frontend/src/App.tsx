@@ -12,6 +12,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { LiveMeetingListenerModal } from './components/LiveMeetingListenerModal';
 import { AuthModal } from './components/AuthModal';
 import { LandingPage } from './components/LandingPage';
+import { AuthPage } from './components/AuthPage';
 import {
   Layers,
   Sparkles,
@@ -29,6 +30,7 @@ import {
   Mic,
   Shield,
   UserCheck,
+  LogOut,
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -41,14 +43,58 @@ export const App: React.FC = () => {
   const [trackerTarget, setTrackerTarget] = useState<'linear' | 'github'>('linear');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [systemConfig, setSystemConfig] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<'landing' | 'app'>('landing');
 
-  // User & Workspace multi-tenant state
-  const [currentUser, setCurrentUser] = useState<UserInfo | null>({
-    id: 'user_demo',
-    email: 'demo@syncstate.io',
-    name: 'Abhinava K (Architect)',
+  // URL-backed Routing (/homepage, /auth, /app)
+  type RoutePath = '/homepage' | '/auth' | '/app';
+  const getInitialRoute = (): RoutePath => {
+    const p = window.location.pathname.toLowerCase();
+    if (p === '/auth' || p === '/login' || p === '/signin' || p === '/signup') return '/auth';
+    if (p === '/app' || p === '/console' || p === '/workspace') return '/app';
+    return '/homepage';
+  };
+
+  const [currentRoute, setCurrentRoute] = useState<RoutePath>(getInitialRoute);
+
+  const navigate = (path: string) => {
+    let target: RoutePath = '/homepage';
+    const clean = path.toLowerCase();
+    if (clean === '/auth' || clean === '/login' || clean === '/signin' || clean === '/signup') {
+      target = '/auth';
+    } else if (clean === '/app' || clean === '/console' || clean === '/workspace') {
+      target = '/app';
+    } else {
+      target = '/homepage';
+    }
+
+    if (window.location.pathname !== target) {
+      window.history.pushState({}, '', target);
+    }
+    setCurrentRoute(target);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Sync with browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentRoute(getInitialRoute());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // User & Workspace multi-tenant state (defaults to null if not authenticated)
+  const [currentUser, setCurrentUser] = useState<UserInfo | null>(() => {
+    const stored = localStorage.getItem('syncstate_user');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return null;
+      }
+    }
+    return null;
   });
+
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceInfo | null>({
     id: 'ws_default',
     name: 'Core Engineering Team',
@@ -56,6 +102,14 @@ export const App: React.FC = () => {
     role: 'admin',
   });
   const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>([]);
+
+  const handleSignOut = () => {
+    localStorage.removeItem('syncstate_user');
+    localStorage.removeItem('syncstate_workspace_id');
+    setCurrentUser(null);
+    showNotice('success', 'Signed out successfully');
+    navigate('/homepage');
+  };
 
   // Modals
   const [showIngestModal, setShowIngestModal] = useState(false);
@@ -74,13 +128,23 @@ export const App: React.FC = () => {
   }, []);
 
   const loadUserProfile = async () => {
+    const stored = localStorage.getItem('syncstate_user');
+    if (!stored) {
+      setCurrentUser(null);
+      return;
+    }
     try {
       const auth = await api.getMe();
-      if (auth.user) setCurrentUser(auth.user);
-      if (auth.active_workspace) setActiveWorkspace(auth.active_workspace);
-      if (auth.workspaces) setWorkspaces(auth.workspaces);
+      if (auth && auth.user) {
+        setCurrentUser(auth.user);
+        localStorage.setItem('syncstate_user', JSON.stringify(auth.user));
+      }
+      if (auth && auth.active_workspace) setActiveWorkspace(auth.active_workspace);
+      if (auth && auth.workspaces) setWorkspaces(auth.workspaces);
     } catch (e) {
-      console.error('Failed to load user profile', e);
+      // Token or user is invalid, clear state
+      localStorage.removeItem('syncstate_user');
+      setCurrentUser(null);
     }
   };
 
@@ -270,21 +334,29 @@ export const App: React.FC = () => {
   const approvedCount = currentMeeting?.action_items.filter((a) => a.is_approved).length || 0;
   const unresolvedConflicts = currentMeeting?.conflicts.filter((c) => !c.resolved) || [];
 
-  if (currentView === 'landing') {
+  if (currentRoute === '/homepage') {
     return (
       <>
         <LandingPage
-          onEnterApp={() => setCurrentView('app')}
+          onNavigate={navigate}
+          onEnterApp={() => {
+            if (currentUser) {
+              navigate('/app');
+            } else {
+              navigate('/auth');
+            }
+          }}
           onOpenLiveListener={() => {
-            setCurrentView('app');
+            navigate('/app');
             setShowLiveListenerModal(true);
           }}
+          currentUser={currentUser}
         />
         {showLiveListenerModal && (
           <LiveMeetingListenerModal
             onClose={() => setShowLiveListenerModal(false)}
             onIngestSuccess={(id) => {
-              setCurrentView('app');
+              navigate('/app');
               refreshMeetings(id);
               loadMeeting(id);
             }}
@@ -294,18 +366,39 @@ export const App: React.FC = () => {
     );
   }
 
+  if (currentRoute === '/auth' || (currentRoute === '/app' && !currentUser)) {
+    return (
+      <AuthPage
+        onNavigate={navigate}
+        onAuthSuccess={(authData) => {
+          setCurrentUser(authData.user);
+          setActiveWorkspace(authData.active_workspace);
+          setWorkspaces(authData.workspaces);
+          showNotice('success', `Welcome, ${authData.user.name}!`);
+          navigate('/app');
+        }}
+        currentUser={currentUser}
+        noticeMessage={
+          currentRoute === '/app' && !currentUser
+            ? 'Authentication Required: Please sign in or create an account to enter your governance workspace.'
+            : undefined
+        }
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
       {/* Top Navigation Bar */}
       <header className="h-14 border-b border-zinc-800 bg-zinc-950 px-5 flex items-center justify-between flex-shrink-0 z-20">
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => setCurrentView('landing')}
+            onClick={() => navigate('/homepage')}
             className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-xs text-zinc-300 transition group"
-            title="Return to Product Showcase & Documentation"
+            title="Return to Product Showcase & Documentation (/homepage)"
           >
             <Layers className="w-3.5 h-3.5 text-indigo-400 group-hover:rotate-12 transition-transform" />
-            <span className="font-medium">Overview</span>
+            <span className="font-medium">Home Page</span>
           </button>
 
           <div className="w-px h-5 bg-zinc-800" />
@@ -355,6 +448,14 @@ export const App: React.FC = () => {
             <span className="text-[10px] text-zinc-400 border-l border-zinc-700 pl-1.5">
               {currentUser?.name?.split(' ')[0] || 'Architect'}
             </span>
+          </button>
+
+          <button
+            onClick={handleSignOut}
+            className="p-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-rose-300 border border-zinc-800 hover:border-zinc-700 transition"
+            title="Sign Out / Switch User"
+          >
+            <LogOut className="w-3.5 h-3.5" />
           </button>
 
           <button
