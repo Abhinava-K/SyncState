@@ -11,6 +11,7 @@ import { IngestModal } from './components/IngestModal';
 import { SettingsModal } from './components/SettingsModal';
 import { LiveMeetingListenerModal } from './components/LiveMeetingListenerModal';
 import { AuthModal } from './components/AuthModal';
+import { LandingPage } from './components/LandingPage';
 import {
   Layers,
   Sparkles,
@@ -40,6 +41,7 @@ export const App: React.FC = () => {
   const [trackerTarget, setTrackerTarget] = useState<'linear' | 'github'>('linear');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [systemConfig, setSystemConfig] = useState<any>(null);
+  const [currentView, setCurrentView] = useState<'landing' | 'app'>('landing');
 
   // User & Workspace multi-tenant state
   const [currentUser, setCurrentUser] = useState<UserInfo | null>({
@@ -268,11 +270,46 @@ export const App: React.FC = () => {
   const approvedCount = currentMeeting?.action_items.filter((a) => a.is_approved).length || 0;
   const unresolvedConflicts = currentMeeting?.conflicts.filter((c) => !c.resolved) || [];
 
+  if (currentView === 'landing') {
+    return (
+      <>
+        <LandingPage
+          onEnterApp={() => setCurrentView('app')}
+          onOpenLiveListener={() => {
+            setCurrentView('app');
+            setShowLiveListenerModal(true);
+          }}
+        />
+        {showLiveListenerModal && (
+          <LiveMeetingListenerModal
+            onClose={() => setShowLiveListenerModal(false)}
+            onIngestSuccess={(id) => {
+              setCurrentView('app');
+              refreshMeetings(id);
+              loadMeeting(id);
+            }}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
       {/* Top Navigation Bar */}
       <header className="h-14 border-b border-zinc-800 bg-zinc-950 px-5 flex items-center justify-between flex-shrink-0 z-20">
         <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setCurrentView('landing')}
+            className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-xs text-zinc-300 transition group"
+            title="Return to Product Showcase & Documentation"
+          >
+            <Layers className="w-3.5 h-3.5 text-indigo-400 group-hover:rotate-12 transition-transform" />
+            <span className="font-medium">Overview</span>
+          </button>
+
+          <div className="w-px h-5 bg-zinc-800" />
+
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30">
             <Zap className="w-5 h-5 text-white" />
           </div>
@@ -280,10 +317,10 @@ export const App: React.FC = () => {
             <div className="flex items-center space-x-2">
               <h1 className="text-sm font-bold tracking-tight text-white">SyncState</h1>
               <span className="text-[10px] font-mono uppercase bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded">
-                v1.0 Agent
+                v2.0 Console
               </span>
             </div>
-            <p className="text-[11px] text-zinc-400">Autonomous Meeting Governance & Task Dispatch</p>
+            <p className="text-[11px] text-zinc-400">Autonomous Governance & Dispatch Workspace</p>
           </div>
         </div>
 
