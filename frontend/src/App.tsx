@@ -13,6 +13,7 @@ import { LiveMeetingListenerModal } from './components/LiveMeetingListenerModal'
 import { AuthModal } from './components/AuthModal';
 import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
+import { ActionLineageModal } from './components/ActionLineageModal';
 import {
   Layers,
   Sparkles,
@@ -31,6 +32,7 @@ import {
   Shield,
   UserCheck,
   LogOut,
+  GitBranch,
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -117,6 +119,7 @@ export const App: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDigestModal, setShowDigestModal] = useState(false);
   const [showLedgerModal, setShowLedgerModal] = useState(false);
+  const [showActionLineageModal, setShowActionLineageModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [digestData, setDigestData] = useState<WeeklyDigestResponse | null>(null);
 
@@ -485,6 +488,15 @@ export const App: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setShowActionLineageModal(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 text-indigo-300 border border-indigo-500/30 flex items-center space-x-1.5 transition-all shadow-sm"
+            title="Cross-Meeting Action Ledger & Lineage Tracker"
+          >
+            <GitBranch className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Action Lineage</span>
+          </button>
+
+          <button
             onClick={handleOpenDigest}
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border border-zinc-800 flex items-center space-x-1.5 transition-all"
           >
@@ -632,9 +644,22 @@ export const App: React.FC = () => {
               <span className="font-mono bg-zinc-900 text-zinc-300 px-2 py-0.5 rounded border border-zinc-800">
                 {currentMeeting?.decisions.length || 0} Decisions
               </span>
+              {(currentMeeting?.action_updates?.length ?? 0) > 0 && (
+                <span className="font-mono bg-emerald-950/60 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30 font-semibold">
+                  {currentMeeting?.action_updates?.length} Closures / Updates
+                </span>
+              )}
               <span className="font-mono bg-zinc-900 text-zinc-300 px-2 py-0.5 rounded border border-zinc-800">
-                {currentMeeting?.action_items.length || 0} Tasks
+                {currentMeeting?.action_items.length || 0} New Tasks
               </span>
+              <button
+                onClick={() => setShowActionLineageModal(true)}
+                className="px-2 py-0.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 rounded flex items-center space-x-1 transition-all"
+                title="View full cross-meeting lineage"
+              >
+                <GitBranch className="w-3 h-3" />
+                <span>Lineage</span>
+              </button>
             </div>
           </div>
 
@@ -721,12 +746,99 @@ export const App: React.FC = () => {
               </div>
             )}
 
+            {/* SECTION 2.5: ACTION LIFECYCLE UPDATES & CLOSURES */}
+            {currentMeeting?.action_updates && currentMeeting.action_updates.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                  <span className="flex items-center space-x-1.5">
+                    <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Action Lifecycle Updates &amp; Closures ({currentMeeting.action_updates.length})</span>
+                  </span>
+                  <span className="text-[11px] text-zinc-400 font-normal">
+                    Deliverables resolved, transferred, or updated in this session
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {currentMeeting.action_updates.map((upd) => {
+                    const isClosed = upd.update_type === 'COMPLETED';
+                    const isHandoff = upd.update_type === 'HANDED_OFF';
+                    const isModified = upd.update_type === 'MODIFIED';
+
+                    return (
+                      <div
+                        key={upd.id}
+                        onMouseEnter={() => setActiveTurnIndex(upd.turn_index)}
+                        onMouseLeave={() => setActiveTurnIndex(null)}
+                        className={`p-3.5 rounded-xl border text-xs space-y-2 transition-all ${
+                          isClosed
+                            ? 'bg-emerald-950/20 border-emerald-500/30 hover:border-emerald-500/50'
+                            : isHandoff
+                            ? 'bg-purple-950/20 border-purple-500/30 hover:border-purple-500/50'
+                            : 'bg-amber-950/20 border-amber-500/30 hover:border-amber-500/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${
+                                isClosed
+                                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                                  : isHandoff
+                                  ? 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+                                  : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                              }`}
+                            >
+                              {isClosed ? 'CLOSED / COMPLETED' : isHandoff ? 'TRANSFERRED / HANDOFF' : 'SCOPE MODIFIED'}
+                            </span>
+                            <span className="font-semibold text-zinc-200 text-xs">
+                              {upd.task}
+                            </span>
+                          </div>
+
+                          <button
+                            onClick={() => setShowActionLineageModal(true)}
+                            className="text-[10px] text-zinc-400 hover:text-indigo-300 flex items-center space-x-1 font-mono transition-colors"
+                          >
+                            <GitBranch className="w-2.5 h-2.5" />
+                            <span>Audit Lineage</span>
+                          </button>
+                        </div>
+
+                        <p className="text-zinc-300 text-[11px] leading-relaxed">
+                          {upd.details}
+                        </p>
+
+                        <div className="pt-1.5 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+                          <div className="flex items-center space-x-2">
+                            <span>Assignee: <strong className="text-zinc-200">{upd.assignee}</strong></span>
+                            {upd.previous_assignee && (
+                              <span className="text-zinc-500">
+                                (from <strong className="text-zinc-400">{upd.previous_assignee}</strong>)
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-zinc-500 italic">Reported by {upd.speaker}</span>
+                        </div>
+
+                        {upd.verbatim_quote && (
+                          <p className="text-[10.5px] text-zinc-500 italic bg-zinc-950/60 p-2 rounded border border-zinc-850">
+                            "{upd.verbatim_quote}"
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* SECTION 3: STAGED ACTION ITEMS */}
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs font-bold text-indigo-400 uppercase tracking-wider">
                 <span className="flex items-center space-x-1.5">
                   <Layers className="w-3.5 h-3.5" />
-                  <span>Staged Action Items ({currentMeeting?.action_items.length || 0})</span>
+                  <span>New Staged Action Items ({currentMeeting?.action_items.length || 0})</span>
                 </span>
                 <span className="text-[11px] text-zinc-500 font-normal">
                   Toggle tasks to dispatch to issue tracker
@@ -798,6 +910,13 @@ export const App: React.FC = () => {
       )}
 
       {showLedgerModal && <DecisionLedgerModal onClose={() => setShowLedgerModal(false)} />}
+
+      {showActionLineageModal && (
+        <ActionLineageModal
+          onClose={() => setShowActionLineageModal(false)}
+          onRefreshMeetings={refreshMeetings}
+        />
+      )}
 
       {showSettingsModal && (
         <SettingsModal

@@ -1,0 +1,22 @@
+WEBVTT
+
+00:01:00.000 --> 00:01:10.000
+<v David (Senior Architect)>We decided to switch to MongoDB for our primary database to handle dynamic unvalidated JSON documents.</v>
+
+00:01:15.000 --> 00:01:25.000
+<v Rahul (Backend)>Regarding our Stripe integration from Meeting 1, I have modified the scope to support multi-currency checkout via Stripe Elements based on European requirements.</v>
+
+00:01:45.000 --> 00:01:55.000
+<v Priya (Product Lead)>Given unexpected scope changes, we decided to push back our hard release freeze deadline to December 1st.</v>
+
+00:02:30.000 --> 00:02:40.000
+<v Rahul (Backend)>The user profile API endpoint is officially deployed to staging and complete.</v>
+
+00:03:15.000 --> 00:03:25.000
+<v Sarah (QA Lead)>Now that the user profile API is deployed, I will write integration tests and test coverage for the user profile endpoint by Thursday.</v>
+
+00:04:10.000 --> 00:04:20.000
+<v David (Senior Architect)>Rahul, I am taking over complete ownership of the user auth and JWT session migration to accelerate our enterprise SSO roadmap.</v>
+
+00:05:00.000 --> 00:05:10.000
+<v Rahul (Backend)>Agreed, I hand off the auth migration to David.</v>

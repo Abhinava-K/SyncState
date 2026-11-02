@@ -17,8 +17,24 @@ export interface ExtractedDecision {
   superseded_by_id?: string;
 }
 
+export interface ActionHistoryEvent {
+  id: string;
+  action_id: string;
+  meeting_id: string;
+  meeting_title: string;
+  meeting_date?: string;
+  event_type: 'CREATED' | 'MODIFIED' | 'COMPLETED' | 'HANDED_OFF' | 'BLOCKED' | 'REOPENED';
+  assignee: string;
+  previous_assignee?: string;
+  change_summary: string;
+  verbatim_quote?: string;
+  speaker?: string;
+  created_at?: string;
+}
+
 export interface ExtractedActionItem {
   id: string;
+  workspace_id?: string;
   meeting_id?: string;
   task: string;
   assignee: string;
@@ -27,7 +43,22 @@ export interface ExtractedActionItem {
   turn_index: number;
   verbatim_quote: string;
   is_approved: boolean;
+  status: 'RUNNING' | 'CLOSED' | 'BLOCKED';
+  parent_action_id?: string;
+  origin_meeting_title?: string;
+  origin_meeting_date?: string;
+  closed_in_meeting_id?: string;
   external_issue_url?: string;
+  created_at?: string;
+  history?: ActionHistoryEvent[];
+}
+
+export interface ActionLineageResponse {
+  actions: ExtractedActionItem[];
+  total_actions: number;
+  running_count: number;
+  closed_count: number;
+  blocked_count: number;
 }
 
 export interface ConflictRecord {
@@ -46,6 +77,19 @@ export interface ConflictRecord {
   resolution_choice?: 'OVERRIDE_PAST' | 'EDIT_NEW' | 'DISMISS';
 }
 
+export interface ActionLifecycleUpdate {
+  id: string;
+  action_id?: string;
+  task: string;
+  update_type: 'COMPLETED' | 'MODIFIED' | 'HANDED_OFF' | 'PROGRESS';
+  speaker: string;
+  assignee: string;
+  previous_assignee?: string;
+  details: string;
+  turn_index: number;
+  verbatim_quote: string;
+}
+
 export interface MeetingIngestResponse {
   meeting_id: string;
   meeting_title: string;
@@ -53,6 +97,7 @@ export interface MeetingIngestResponse {
   turns: DiarizedTurn[];
   decisions: ExtractedDecision[];
   action_items: ExtractedActionItem[];
+  action_updates?: ActionLifecycleUpdate[];
   conflicts: ConflictRecord[];
   has_conflicts: boolean;
   unresolved_conflict_count: number;

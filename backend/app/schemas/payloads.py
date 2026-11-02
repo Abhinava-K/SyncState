@@ -35,18 +35,63 @@ class ExtractedDecision(BaseModel):
     superseded_by_id: Optional[str] = None
     created_at: Optional[str] = None
 
+class ActionHistoryEvent(BaseModel):
+    id: str
+    action_id: str
+    meeting_id: str
+    meeting_title: str
+    meeting_date: Optional[str] = None
+    event_type: Literal["CREATED", "MODIFIED", "COMPLETED", "HANDED_OFF", "BLOCKED", "REOPENED"]
+    assignee: str
+    previous_assignee: Optional[str] = None
+    change_summary: str
+    verbatim_quote: Optional[str] = None
+    speaker: Optional[str] = None
+    created_at: Optional[str] = None
+
 class ExtractedActionItem(BaseModel):
     id: str
+    workspace_id: Optional[str] = "ws_default"
     meeting_id: Optional[str] = None
     task: str = Field(..., description="Direct, actionable deliverable")
     assignee: str = Field(..., description="Individual responsible for execution")
     deadline: Optional[str] = Field(None, description="ISO date or relative target (e.g. '2026-11-15' or 'Thursday')")
     priority: Literal["low", "medium", "high", "urgent"] = "medium"
-    turn_index: int
+    turn_index: int = 0
     verbatim_quote: str = Field(..., description="Exact spoken sentence creating the commitment")
     is_approved: bool = True
+    status: Literal["RUNNING", "CLOSED", "BLOCKED"] = "RUNNING"
+    parent_action_id: Optional[str] = None
+    origin_meeting_title: Optional[str] = None
+    origin_meeting_date: Optional[str] = None
+    closed_in_meeting_id: Optional[str] = None
     external_issue_url: Optional[str] = None
     created_at: Optional[str] = None
+    history: List[ActionHistoryEvent] = []
+
+class ActionStatusUpdateRequest(BaseModel):
+    status: Literal["RUNNING", "CLOSED", "BLOCKED"]
+    meeting_id: Optional[str] = None
+    note: Optional[str] = None
+
+class ActionLifecycleUpdate(BaseModel):
+    id: str = Field(default_factory=lambda: f"upd_{uuid.uuid4().hex[:8]}")
+    action_id: Optional[str] = None
+    task: str
+    update_type: Literal["COMPLETED", "MODIFIED", "HANDED_OFF", "PROGRESS"]
+    speaker: str
+    assignee: str
+    previous_assignee: Optional[str] = None
+    details: str
+    turn_index: int = 0
+    verbatim_quote: str
+
+class ActionLineageResponse(BaseModel):
+    actions: List[ExtractedActionItem]
+    total_actions: int
+    running_count: int
+    closed_count: int
+    blocked_count: int
 
 class ConflictRecord(BaseModel):
     id: str
@@ -76,6 +121,7 @@ class MeetingIngestResponse(BaseModel):
     turns: List[DiarizedTurn]
     decisions: List[ExtractedDecision]
     action_items: List[ExtractedActionItem]
+    action_updates: List[ActionLifecycleUpdate] = []
     conflicts: List[ConflictRecord]
     has_conflicts: bool
     unresolved_conflict_count: int

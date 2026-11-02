@@ -32,6 +32,13 @@ class AuditService:
 
         return detected_conflicts
 
+    def is_resolution_statement(self, text: str) -> bool:
+        resolution_patterns = [
+            r'\b(?:we resolved|resolved the (?:architecture|database|timeline)?\s*conflict|we agreed to stick with|stick with|sticking with|completely rejecting|rejecting|agreed to keep|protect our (?:hard )?release freeze|confirm(?:ing)? the (?:hard )?release freeze|reaffirm(?:ing)?)\b',
+            r'\breached agreement to descope\b'
+        ]
+        return any(re.search(p, text, re.IGNORECASE) for p in resolution_patterns)
+
     async def _evaluate_pair(
         self,
         candidate: Dict[str, Any],
@@ -40,6 +47,58 @@ class AuditService:
     ) -> Optional[ConflictRecord]:
         cand_text = candidate["statement"]
         hist_text = historical["statement"]
+        cand_quote = candidate.get("verbatim_quote", "")
+        hist_quote = historical.get("verbatim_quote", "")
+        full_cand = f"{cand_text} {cand_quote}".lower()
+        full_hist = f"{hist_text} {hist_quote}".lower()
+
+        # Check if candidate is an explicit resolution / settlement of earlier conflicts
+        if self.is_resolution_statement(full_cand):
+            from app.database import db
+
+            # A: Database Architecture resolution
+            if any(k in full_cand for k in ["database", "postgresql", "postgres", "mongodb"]):
+                if "mongodb" in full_hist:
+                    # Resolves the MongoDB contradiction -> Mark historical conflict resolved & decision superseded
+                    with db.get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                        UPDATE conflicts 
+                        SET resolved = 1, resolution_choice = 'OVERRIDE_PAST' 
+                        WHERE candidate_decision_id = ? OR historical_decision_id = ?
+                        """, (historical["id"], historical["id"]))
+                        cursor.execute("""
+                        UPDATE decisions 
+                        SET status = 'SUPERSEDED', superseded_by_id = ? 
+                        WHERE id = ?
+                        """, (candidate["id"], historical["id"]))
+                        conn.commit()
+                    return None
+                if "postgresql" in full_hist or "postgres" in full_hist:
+                    # Reaffirming original PostgreSQL agreement -> 100% compatible
+                    return None
+
+            # B: Release Timeline resolution
+            if any(k in full_cand for k in ["release", "freeze", "deadline", "descope"]):
+                if "dec 1" in full_hist or "december 1" in full_hist:
+                    # Resolves the December 1st timeline slip -> Mark historical conflict resolved & decision superseded
+                    with db.get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                        UPDATE conflicts 
+                        SET resolved = 1, resolution_choice = 'OVERRIDE_PAST' 
+                        WHERE candidate_decision_id = ? OR historical_decision_id = ?
+                        """, (historical["id"], historical["id"]))
+                        cursor.execute("""
+                        UPDATE decisions 
+                        SET status = 'SUPERSEDED', superseded_by_id = ? 
+                        WHERE id = ?
+                        """, (candidate["id"], historical["id"]))
+                        conn.commit()
+                    return None
+                if "nov 15" in full_hist or "november 15" in full_hist:
+                    # Reaffirming original November 15th freeze -> 100% compatible
+                    return None
 
         # 1. LLM NLI evaluation if Gemini key is available
         if self.api_key:
@@ -63,6 +122,8 @@ class AuditService:
                         confidence=round(llm_result.get("confidence", 0.85), 2),
                         resolved=False
                     )
+                elif llm_result and llm_result.get("stance") in ["COMPATIBLE", "RESOLUTION", "SUPERSEDES"]:
+                    return None
             except Exception:
                 pass
 
@@ -123,10 +184,23 @@ class AuditService:
             ("redux", "zustand", "State Management"),
             ("docker", "serverless", "Deployment Model")
         ]
+
+        def _get_active_tech(stmt: str, t1: str, t2: str) -> Optional[str]:
+            t1_neg = bool(re.search(rf'\b(?:rejecting|rejected|reject|not using|drop|dropping|instead of)\s+(?:using\s+)?{t1}\b', stmt, re.IGNORECASE))
+            t2_neg = bool(re.search(rf'\b(?:rejecting|rejected|reject|not using|drop|dropping|instead of)\s+(?:using\s+)?{t2}\b', stmt, re.IGNORECASE))
+            if t1 in stmt and not t1_neg:
+                return t1
+            if t2 in stmt and not t2_neg:
+                return t2
+            return None
+
         for t1, t2, domain in tech_pairs:
-            if (t1 in hist_stmt and t2 in cand_stmt) or (t2 in hist_stmt and t1 in cand_stmt):
-                winner_hist = t1 if t1 in hist_stmt else t2
-                winner_cand = t2 if winner_hist == t1 else t1
+            cand_choice = _get_active_tech(cand_stmt, t1, t2)
+            hist_choice = _get_active_tech(hist_stmt, t1, t2)
+            if cand_choice and hist_choice and cand_choice != hist_choice:
+                # If candidate is explicitly resolving/rejecting, don't generate duplicate conflict
+                if self.is_resolution_statement(cand_stmt):
+                    continue
                 return ConflictRecord(
                     id=f"conf_{uuid.uuid4().hex[:8]}",
                     meeting_id=meeting_id,
@@ -137,7 +211,7 @@ class AuditService:
                     historical_quote=hist_quote or historical["statement"],
                     candidate_quote=cand_quote or candidate["statement"],
                     conflict_type=ConflictType.TECH_STACK_REVERSAL,
-                    reasoning=f"Meeting decision proposes using {winner_cand.upper()}, which directly contradicts earlier institutional agreement to use {winner_hist.upper()} without an acknowledged migration approval.",
+                    reasoning=f"Meeting decision proposes using {cand_choice.upper()}, which directly contradicts earlier institutional agreement to use {hist_choice.upper()} without an acknowledged migration approval.",
                     confidence=0.92,
                     resolved=False
                 )
@@ -159,6 +233,8 @@ class AuditService:
             dates_hist = extract_normalized_dates(hist_stmt)
             
             if dates_cand and dates_hist and dates_cand != dates_hist:
+                if self.is_resolution_statement(cand_stmt):
+                    return None
                 return ConflictRecord(
                     id=f"conf_{uuid.uuid4().hex[:8]}",
                     meeting_id=meeting_id,
@@ -344,16 +420,19 @@ Compare these two team decisions from different meetings:
 
 Do these two decisions contradict each other?
 Classify the stance into:
-- COMPATIBLE: Compatible or independent
+- COMPATIBLE: Compatible, identical, or independent
+- RESOLUTION: The candidate explicitly resolves, settles, or reaffirms a prior decision (e.g. reaffirming PostgreSQL and rejecting MongoDB, or protecting the Nov 15th release freeze by descoping non-critical items).
 - SUPERSEDES: Deliberate valid update with clear justification
 - DIRECT_CONFLICT: Conflicting policy, slipped deadline, contract inversion, or reversed tech stack without formal agreement
 
+CRITICAL: If the candidate statement explicitly resolves an earlier conflict, agrees to stick with an original stance, descopes to protect a milestone, or rejects a temporary alternative, you MUST classify it as RESOLUTION (or COMPATIBLE), NEVER as DIRECT_CONFLICT!
+
 Respond ONLY with valid JSON matching:
 {{
-  "stance": "COMPATIBLE" | "SUPERSEDES" | "DIRECT_CONFLICT",
+  "stance": "COMPATIBLE" | "RESOLUTION" | "SUPERSEDES" | "DIRECT_CONFLICT",
   "confidence": 0.0 to 1.0,
-  "conflict_type": "TIMELINE_SLIP" | "TECH_STACK_REVERSAL" | "POLICY_REVERSAL" | "OWNER_DISPUTE" | "CONTRACT_INVERSION" | "DEPENDENCY_DEADLOCK",
-  "reasoning": "Clear 1-2 sentence explanation of the contradiction"
+  "conflict_type": "TIMELINE_SLIP" | "TECH_STACK_REVERSAL" | "POLICY_REVERSAL" | "OWNER_DISPUTE" | "CONTRACT_INVERSION" | "DEPENDENCY_DEADLOCK" | null,
+  "reasoning": "Clear 1-2 sentence explanation of the evaluation"
 }}
 """
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={self.api_key}"

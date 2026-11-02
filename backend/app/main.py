@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api.routes import meetings, staging, digests, settings as settings_route, auth
+from app.api.routes import meetings, staging, digests, settings as settings_route, auth, actions
 from app.services.extractor_service import extractor_service
 from app.services.memory_service import memory_service
 from app.services.audit_service import audit_service
@@ -27,6 +27,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(meetings.router)
 app.include_router(staging.router)
+app.include_router(actions.router)
 app.include_router(digests.router)
 app.include_router(settings_route.router)
 
@@ -47,6 +48,7 @@ async def reset_database():
     with db.get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM conflicts")
+        cursor.execute("DELETE FROM action_history")
         cursor.execute("DELETE FROM action_items")
         cursor.execute("DELETE FROM decisions")
         cursor.execute("DELETE FROM meetings")
@@ -63,6 +65,7 @@ async def seed_demo_data():
     with db.get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM conflicts")
+        cursor.execute("DELETE FROM action_history")
         cursor.execute("DELETE FROM action_items")
         cursor.execute("DELETE FROM decisions")
         cursor.execute("DELETE FROM meetings")

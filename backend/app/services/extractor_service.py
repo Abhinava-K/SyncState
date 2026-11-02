@@ -5,7 +5,7 @@ import base64
 from typing import List, Dict, Any, Tuple, Optional
 import httpx
 from app.config import settings
-from app.schemas.payloads import DiarizedTurn, ExtractedDecision, ExtractedActionItem, DecisionStatus
+from app.schemas.payloads import DiarizedTurn, ExtractedDecision, ExtractedActionItem, ActionLifecycleUpdate, DecisionStatus
 
 class ExtractorService:
     def __init__(self):
@@ -229,12 +229,12 @@ Rahul (Backend) (02:30): I will finish the Auth API by Thursday.
         self,
         turns: List[DiarizedTurn],
         meeting_id: str
-    ) -> Tuple[List[ExtractedDecision], List[ExtractedActionItem]]:
+    ) -> Tuple[List[ExtractedDecision], List[ExtractedActionItem], List[ActionLifecycleUpdate]]:
         if self.api_key:
             try:
-                decisions, actions = await self._call_gemini_extractor(turns, meeting_id)
-                if decisions or actions:
-                    return decisions, actions
+                decisions, actions, updates = await self._call_gemini_extractor(turns, meeting_id)
+                if decisions or actions or updates:
+                    return decisions, actions, updates
             except Exception:
                 pass # Fall back to rule-based parser on any exception
 
@@ -244,9 +244,14 @@ Rahul (Backend) (02:30): I will finish the Auth API by Thursday.
         self,
         turns: List[DiarizedTurn],
         meeting_id: str
-    ) -> Tuple[List[ExtractedDecision], List[ExtractedActionItem]]:
+    ) -> Tuple[List[ExtractedDecision], List[ExtractedActionItem], List[ActionLifecycleUpdate]]:
         decisions: List[ExtractedDecision] = []
         action_items: List[ExtractedActionItem] = []
+        action_updates: List[ActionLifecycleUpdate] = []
+
+        completion_pattern = r'\b(?:100%\s+complete|is\s+officially\s+complete|officially\s+complete|is\s+complete|are\s+complete|officially\s+deployed|deployed\s+to\s+staging\s+and\s+complete|completed\s+and\s+audited|merged\s+into\s+main|complete\s+with\s+\d+%\s+coverage|is\s+done|verified\s+in\s+sandbox|signed\s+off)\b'
+        handoff_pattern = r'\b(?:taking\s+over(?:\s+complete)?\s+ownership\s+of|taking\s+over\s+ownership|hand(?:ing)?\s+off\s+(.+?)\s+to\s+([A-Za-z0-9_-]+)|taking\s+complete\s+ownership\s+of)\b'
+        modification_pattern = r'\b(?:modified\s+the\s+scope|redefined\s+schema|updated\s+the\s+scope|scope\s+expanded|changed\s+requirements|modified\s+to\s+support)\b'
 
         decision_patterns = [
             (r'\b(?:we chose|we decided|let\'s agree|agreed on|we are adopting|we will use|will use|decision is|standardize on|consensus is|agreed to)\b\s*(.+)', "Architecture"),
@@ -280,8 +285,82 @@ Rahul (Backend) (02:30): I will finish the Auth API by Thursday.
         for turn in turns:
             text = turn.text
             speaker = turn.speaker
+            speaker_name = speaker.split("(")[0].strip()
 
-            # 1. Check for Decisions (Sentence-level resolution, filtering out interrogatives and conversational chatter)
+            # 1. Check for Action Lifecycle Updates FIRST (Completions, Handoffs, Modifications)
+            # This prevents task completions (e.g. "auth migration is complete") from being treated as decisions!
+            is_lifecycle_update = False
+
+            if re.search(completion_pattern, text, re.IGNORECASE):
+                # Clean task title
+                clean_title = text
+                m_sub = re.sub(completion_pattern, '', clean_title, flags=re.IGNORECASE).strip()
+                m_sub = re.sub(r'^(?:the\s+)?', '', m_sub, flags=re.IGNORECASE).strip()
+                if len(m_sub) > 6:
+                    clean_title = m_sub.rstrip(".,; ")
+                    clean_title = clean_title[0].upper() + clean_title[1:]
+
+                action_updates.append(ActionLifecycleUpdate(
+                    id=f"upd_{uuid.uuid4().hex[:8]}",
+                    task=clean_title,
+                    update_type="COMPLETED",
+                    speaker=speaker,
+                    assignee=speaker_name,
+                    details=f"Task completed and reported by {speaker_name}.",
+                    turn_index=turn.turn_index,
+                    verbatim_quote=text
+                ))
+                is_lifecycle_update = True
+
+            elif re.search(handoff_pattern, text, re.IGNORECASE):
+                m_ho = re.search(r'taking\s+over(?:\s+complete)?\s+ownership\s+of\s+(.+?)(?:\s+to|\s+by|\.|$)', text, re.IGNORECASE)
+                m_handoff2 = re.search(r'hand(?:ing)?\s+off\s+(.+?)\s+to\s+([A-Za-z0-9_-]+)', text, re.IGNORECASE)
+                
+                new_assignee = speaker_name
+                prev_assignee = "Previous Assignee"
+                task_name = "Deliverable Ownership"
+
+                if m_handoff2:
+                    task_name = m_handoff2.group(1).strip()
+                    new_assignee = m_handoff2.group(2).strip()
+                    prev_assignee = speaker_name
+                elif m_ho:
+                    task_name = m_ho.group(1).strip()
+                    # e.g., "Rahul, I am taking over..."
+                    m_lead = re.match(r'^([A-Za-z0-9_-]+)[,:]', text)
+                    if m_lead:
+                        prev_assignee = m_lead.group(1)
+
+                action_updates.append(ActionLifecycleUpdate(
+                    id=f"upd_{uuid.uuid4().hex[:8]}",
+                    task=task_name[0].upper() + task_name[1:] if task_name else "Transferred Deliverable",
+                    update_type="HANDED_OFF",
+                    speaker=speaker,
+                    assignee=new_assignee,
+                    previous_assignee=prev_assignee,
+                    details=f"Ownership transferred from {prev_assignee} to {new_assignee}.",
+                    turn_index=turn.turn_index,
+                    verbatim_quote=text
+                ))
+                is_lifecycle_update = True
+
+            elif re.search(modification_pattern, text, re.IGNORECASE):
+                action_updates.append(ActionLifecycleUpdate(
+                    id=f"upd_{uuid.uuid4().hex[:8]}",
+                    task="Scope / Requirements Update",
+                    update_type="MODIFIED",
+                    speaker=speaker,
+                    assignee=speaker_name,
+                    details="Deliverable scope or technical specification was updated.",
+                    turn_index=turn.turn_index,
+                    verbatim_quote=text
+                ))
+                is_lifecycle_update = True
+
+            if is_lifecycle_update:
+                continue
+
+            # 2. Check for Decisions (Sentence-level resolution, filtering out interrogatives and conversational chatter)
             sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
             for sent in sentences:
                 if re.search(question_pattern, sent, re.IGNORECASE):
@@ -323,12 +402,12 @@ Rahul (Backend) (02:30): I will finish the Auth API by Thursday.
                 if any(d.turn_index == turn.turn_index for d in decisions):
                     break
 
-            # 2. Check for Action Items (Supports both Peer Commitments and Manager Monologue Directives)
+            # 3. Check for NEW Action Items (Supports both Peer Commitments and Manager Monologue Directives)
             matched_action = False
-            target_assignee = speaker.split("(")[0].strip()
+            target_assignee = speaker_name
             task_raw = text
 
-            # 2a. Check if Manager is assigning to a named person ("Rahul, please build...", "Assigning David to...")
+            # 3a. Check if Manager is assigning to a named person ("Rahul, please build...", "Assigning David to...")
             for pat in manager_directive_patterns:
                 m_dir = re.search(pat, text, re.IGNORECASE)
                 if m_dir:
@@ -346,7 +425,7 @@ Rahul (Backend) (02:30): I will finish the Auth API by Thursday.
                     matched_action = True
                     break
 
-            # 2b. Check if speaker is committing self ("I will build...")
+            # 3b. Check if speaker is committing self ("I will build...")
             if not matched_action and not text.strip().endswith('?'):
                 for pat in action_patterns:
                     if re.search(pat, text, re.IGNORECASE):
@@ -388,24 +467,33 @@ Rahul (Backend) (02:30): I will finish the Auth API by Thursday.
                     is_approved=True
                 ))
 
-        return decisions, action_items
-
-        return decisions, action_items
+        return decisions, action_items, action_updates
 
     async def _call_gemini_extractor(
         self,
         turns: List[DiarizedTurn],
         meeting_id: str
-    ) -> Tuple[List[ExtractedDecision], List[ExtractedActionItem]]:
+    ) -> Tuple[List[ExtractedDecision], List[ExtractedActionItem], List[ActionLifecycleUpdate]]:
         transcript_formatted = "\n".join([
             f"[{t.turn_index}] {t.speaker} ({t.timestamp}): {t.text}" for t in turns
         ])
 
         prompt = f"""
-You are an expert executive meeting parser.
+You are an expert executive meeting parser and action tracker.
 Analyze the following diarized transcript and extract:
-1. DECISIONS: Concrete team agreements, architectural choices, policy consensus, or milestone freeze dates.
-2. ACTION ITEMS: Explicit obligations and tasks assigned to individuals, with deadlines and priority.
+1. DECISIONS: Concrete team agreements, architectural choices, company policies, or hard release freeze dates.
+   CRITICAL: Do NOT classify deliverable completions (e.g. "X is complete and merged") as decisions. Put them in action_updates!
+2. ACTION ITEMS: Explicit NEW obligations and tasks assigned to individuals, with deadlines and priority.
+3. ACTION UPDATES: Progress reports, closures/completions, handoffs/reassignments, or scope modifications on deliverables discussed in the meeting.
+   - COMPLETED: Tasks declared finished, complete, deployed, or sandbox-verified (e.g., "Stripe webhook integration is 100% complete", "auth migration is complete and merged", "testing is complete with 98% coverage").
+   - HANDED_OFF: Tasks transferred from one team member to another distinct team member. (Assignee must be different from previous_assignee).
+   - MODIFIED: Scope or requirements changes discussed on a task.
+   - PROGRESS: General progress on a running deliverable.
+
+CRITICAL DEDUPLICATION RULE:
+An utterance can be EITHER a new action_item OR an action_update, NEVER BOTH!
+- If a speaker commits to doing something or takes initial ownership (e.g. "I am taking ownership of X by Thursday", "I will build Y"), put it in action_items. Do NOT put it in action_updates!
+- HANDED_OFF in action_updates is strictly for when a deliverable changes hands between two distinct people (previous_assignee != assignee). If someone is just claiming a task for themselves initially, that is an action_item, NOT a handoff!
 
 For each item, you must include the exact `turn_index` and `verbatim_quote` from the transcript.
 
@@ -425,11 +513,23 @@ Respond ONLY with valid JSON in this format:
   ],
   "action_items": [
     {{
-      "task": "Actionable task summary",
+      "task": "Actionable task summary for NEW task",
       "assignee": "Person responsible",
-      "deadline": "ISO date or relative date mentioned (e.g. 'Thursday' or '2026-11-15')",
+      "deadline": "ISO date or relative date mentioned (e.g. 'Monday', 'Thursday' or '2026-11-15')",
       "priority": "low" | "medium" | "high" | "urgent",
       "turn_index": 1,
+      "verbatim_quote": "Exact spoken quote"
+    }}
+  ],
+  "action_updates": [
+    {{
+      "task": "Deliverable title/summary being updated or closed",
+      "update_type": "COMPLETED" | "HANDED_OFF" | "MODIFIED" | "PROGRESS",
+      "speaker": "Speaker reporting update",
+      "assignee": "Current or new assignee responsible",
+      "previous_assignee": "Previous assignee if transferred, otherwise null",
+      "details": "1-sentence summary of status update",
+      "turn_index": 2,
       "verbatim_quote": "Exact spoken quote"
     }}
   ]
@@ -473,8 +573,23 @@ Respond ONLY with valid JSON in this format:
                         is_approved=True
                     ) for a in parsed.get("action_items", [])
                 ]
-                return decisions, action_items
 
-        return [], []
+                action_updates = [
+                    ActionLifecycleUpdate(
+                        id=f"upd_{uuid.uuid4().hex[:8]}",
+                        task=u["task"],
+                        update_type=u.get("update_type", "COMPLETED"),
+                        speaker=u.get("speaker", "Team Member"),
+                        assignee=u.get("assignee", "Engineering"),
+                        previous_assignee=u.get("previous_assignee"),
+                        details=u.get("details", "Status update recorded in meeting."),
+                        turn_index=u.get("turn_index", 0),
+                        verbatim_quote=u.get("verbatim_quote", "")
+                    ) for u in parsed.get("action_updates", [])
+                ]
+
+                return decisions, action_items, action_updates
+
+        return [], [], []
 
 extractor_service = ExtractorService()

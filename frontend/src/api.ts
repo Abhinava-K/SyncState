@@ -1,4 +1,4 @@
-import { MeetingIngestResponse, WeeklyDigestResponse, MeetingSummaryItem, AuthResponse, WorkspaceInfo } from './types';
+import { MeetingIngestResponse, WeeklyDigestResponse, MeetingSummaryItem, AuthResponse, WorkspaceInfo, ActionLineageResponse } from './types';
 
 const API_BASE = '/api';
 
@@ -135,4 +135,17 @@ export const api = {
 
   // Digests
   getWeeklyDigest: () => fetchJson<WeeklyDigestResponse>('/digests/weekly'),
+
+  // Action Lineage & Lifecycle Ledger
+  getActionLineage: () => fetchJson<ActionLineageResponse>('/actions/lineage'),
+  updateActionStatus: (actionId: string, status: 'RUNNING' | 'CLOSED' | 'BLOCKED', meetingId?: string, note?: string) =>
+    fetchJson<{ status: string }>(`/actions/${actionId}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status, meeting_id: meetingId, note }),
+    }),
+  seedActionLineageDemo: () =>
+    fetchJson<{ status: string; message: string; action_completed: string; action_followup: string; meetings: string[] }>(
+      '/actions/seed-lineage-journey',
+      { method: 'POST' }
+    ),
 };

@@ -77,6 +77,18 @@ export const ActionItemRow: React.FC<Props> = ({ item, onToggle, onUpdate, onHov
             <span>{item.assignee}</span>
           </div>
 
+          {/* Status Pill */}
+          <span className={`px-2 py-0.5 rounded-full border text-[10px] font-mono font-semibold flex items-center space-x-1 ${
+            item.status === 'CLOSED'
+              ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
+              : item.status === 'BLOCKED'
+              ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${item.status === 'CLOSED' ? 'bg-zinc-500' : 'bg-emerald-400 animate-pulse'}`} />
+            <span>{item.status || 'RUNNING'}</span>
+          </span>
+
           {/* Deadline */}
           {item.deadline && (
             <div className="flex items-center space-x-1 bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 font-mono">
