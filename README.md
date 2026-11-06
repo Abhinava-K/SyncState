@@ -1,99 +1,96 @@
-# ⚡ SyncState: Autonomous Meeting Governance & Execution Platform
+# SyncState: Autonomous Meeting Governance & Execution Platform
 
-[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](#-license--intellectual-property)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/Frontend-React_18_%2B_Vite-61DAFB.svg)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/Types-TypeScript-3178C6.svg)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind_CSS-38B2AC.svg)](https://tailwindcss.com/)
-
-SyncState transforms team meetings, audio streams, and transcripts into verifiable institutional memory and concrete engineering deliverables. Rather than producing passive text summaries that get lost in Slack channels, SyncState maintains a persistent, queryable state machine that detects cross-meeting architectural collisions, enforces human governance gates, and synchronizes directly with issue tracking systems.
+SyncState turns engineering meetings, live audio streams, and transcripts into verifiable institutional memory and concrete engineering deliverables. Rather than producing passive text summaries that get lost in team chat channels, SyncState maintains a persistent, queryable state machine that detects cross-meeting architectural collisions, enforces human governance gates, and synchronizes deliverables directly with issue tracking systems.
 
 ---
 
-## 🌟 Key Capabilities
+## Core Capabilities
 
-### 1. In-Meeting Live Voice Listener ($0.00 API Cost)
-* **Zero API Cost Streaming**: Powered by browser-native continuous speech recognition (`webkitSpeechRecognition`) with no token fees, rate limits, or audio duration cutoffs.
-* **Real-Time Equalizer Waveform**: Web Audio API visualizer reacts to live microphone audio with dynamic frequency and volume metering.
-* **On-the-Fly Diarization**: Facilitators or speakers can attribute turns in real time with interactive speaker chips (`Alex (Lead)`, `Rahul (Backend)`, `Sarah (QA)`, or custom members) or let pause-detection automatically segment turns.
+### 1. In-Meeting Live Voice Listener
+- **Browser-Native Audio Capture**: Captures 16-bit PCM microphone audio directly via browser speech recognition with dynamic volume metering.
+- **On-the-Fly Diarization**: Facilitators can attribute speaking turns in real time or allow pause detection to segment speaker contributions automatically.
+- **Zero Third-Party Dependency**: Operates client-side without external speech API costs or token billing.
 
-### 2. Multi-Format Transcript Ingestion
-* Natively parses Zoom, Google Meet, Microsoft Teams, and Otter WebVTT (`.vtt`), SubRip (`.srt`), JSON schemas, raw conversational dialogue, and binary audio files (`.wav`, `.mp3`, `.m4a`, `.webm`, `.ogg`).
-* Verbatim evidence linking: Every extracted decision and action item preserves its exact timestamp and spoken quote. Clicking any entity highlights the speaker turn in the transcript viewer.
+### 2. Multi-Format Transcript Ingest
+- **Universal Parser**: Natively parses Zoom, Google Meet, Microsoft Teams, and Otter WebVTT (`.vtt`), SubRip (`.srt`), JSON schemas, raw text paste, and audio files (`.wav`, `.mp3`, `.m4a`, `.webm`, `.ogg`).
+- **Verbatim Evidence Linking**: Every extracted decision and action item preserves its exact timestamp, speaker attribution, and spoken sentence. Clicking any entity highlights the corresponding turn in the transcript viewer.
 
-### 3. Deep Architectural Collision & Conflict Engine
-SyncState continuously audits newly proposed stances against the team's historical memory, surfacing conflicts before contradictory work begins:
-* **Tech Stack Reversals**: Flags database, framework, or cloud infrastructure reversals without documented migration approvals (e.g., PostgreSQL vs. MongoDB, React vs. Vue, REST vs. GraphQL).
-* **Timeline Slips**: Catches uncoordinated milestone, launch, or release freeze schedule shifts.
-* **Interface & Contract Inversions**: Flags API protocol divergences (REST OpenAPI vs. gRPC Protobuf, WebSockets vs. polling, UUID vs. auto-increment keys).
-* **Dependency Deadlocks**: Detects when downstream tasks (e.g. *Run load testing on checkout*) are scheduled before prerequisite deliverables (e.g. *Stripe webhook integration*) are completed.
-* **Feature Ownership Disputes**: Identifies uncoordinated ownership reassignments across sprints.
+### 3. Deep Architectural Collision Engine
+SyncState audits newly proposed stances against historical agreements to surface contradictions before breaking work begins:
+- **Tech Stack Reversals**: Flags database, framework, or cloud infrastructure shifts made without documented migration approvals (e.g., PostgreSQL vs. MongoDB, REST vs. GraphQL).
+- **Timeline Slips**: Detects uncoordinated milestone changes or release freeze schedule modifications.
+- **Contract & Protocol Inversions**: Identifies API divergences (REST OpenAPI vs. gRPC Protobuf, WebSockets vs. polling).
+- **Dependency Deadlocks**: Catches downstream tasks scheduled prior to prerequisite deliverables.
+- **Feature Ownership Disputes**: Identifies conflicting feature assignments across sprints.
 
 ### 4. Human-in-the-Loop (HITL) Staging Gate
-* Git-style staging diff interface: Review candidate decisions and action items before committing to long-term memory.
-* One-click conflict resolutions:
-  * **Override Past Decision**: Supersedes earlier policy and logs the historical rationale.
-  * **Edit Proposed Stance**: Modifies the current commitment to align with past agreements.
-  * **Dismiss Conflict**: Acknowledges non-interfering edge cases.
-* **Safety Gate Lock**: Dispatches to issue trackers are locked until all detected contradictions are explicitly resolved.
+- **Git-Style Staging Diff**: Review proposed decisions and action items side-by-side with conflicting historical precedents.
+- **Explicit Conflict Resolutions**:
+  - *Override Past Decision*: Supersedes earlier policy and documents the new rationale.
+  - *Edit Proposed Stance*: Modifies current commitments to align with past consensus.
+  - *Dismiss Conflict*: Acknowledges edge cases where divergence is intended.
+- **Governance Lock**: Deliverable dispatch is locked until all active contradictions are explicitly resolved.
 
-### 5. Bi-Directional Issue Tracker Dispatch
-* Dispatches approved tasks directly into **Linear** or **GitHub Issues**.
-* Generates deep links, tracks ticket identifiers (`SYN-101`), and maintains idempotency to prevent duplicate ticket creation.
-* Dual operating mode: Switch effortlessly between live external API calls and self-contained zero-dependency mock mode.
+### 5. Automated GitHub Issue Dispatch
+- **Automated Issue Generation**: Cleans conversational chatter from action items and dispatches structured Markdown issues to target GitHub repositories.
+- **Audit Receipts**: Issues include speaker attribution, verbatim quotes, meeting source links, and milestone tags.
+- **Dual Operating Mode**: Seamlessly toggles between live GitHub API dispatch and deterministic mock mode for offline testing.
 
-### 6. Deadline Reminders & Weekly Digests
-* Real-time deadline evaluation highlighting critical deadlines within **24 hours** and **48 hours**.
-* Generates individual per-person Markdown digests grouping active deliverables, decisions led, and upcoming milestone warnings.
+### 6. Action Lineage & Cross-Meeting History
+- **End-to-End Task Lifecycle**: Tracks action items across consecutive meetings (e.g., created in sprint planning, blocked in standup, completed in retro).
+- **Dependency Chains**: Links parent tasks to downstream follow-up assignments.
 
-### 7. Multi-Tenant Workspace Security
-* Complete workspace isolation: Meetings, decisions, vector embeddings, and action items are partitioned by `workspace_id`.
-* Built-in authentication API supporting enterprise organization registration, session management, and workspace switching.
+### 7. Multi-Tenant Workspace Architecture
+- Complete data isolation partitioned by workspace IDs.
+- Built-in authentication and organization switching.
+- Persistent SQLite database (`syncstate.db`) requiring zero external database clusters.
 
 ---
 
-## 🏗️ System Architecture
+## Architecture
 
 ```text
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                  # FastAPI server, CORS, reset & seed endpoints
-│   │   ├── config.py                # Pydantic Settings configuration & env parsing
-│   │   ├── database.py              # SQLite schema, migrations & tenant repositories
-│   │   ├── schemas/payloads.py      # Strict Pydantic models & validation contracts
+│   │   ├── main.py                  # FastAPI application entrypoint and middleware
+│   │   ├── config.py                # Environment configuration and Pydantic settings
+│   │   ├── database.py              # SQLite schema, migrations, and tenant isolation
+│   │   ├── schemas/payloads.py      # Strict validation contracts and schemas
 │   │   ├── services/
-│   │   │   ├── extractor_service.py # Multi-format parser & entity extraction
-│   │   │   ├── memory_service.py    # Hybrid vector embeddings & dense retrieval
-│   │   │   ├── audit_service.py     # Deep architectural collision & NLI stance auditor
-│   │   │   ├── tracker_service.py   # Linear GraphQL & GitHub Issues REST client
-│   │   │   └── digest_service.py    # Deadline urgency evaluator & Markdown compiler
+│   │   │   ├── extractor_service.py # Transcript parsing and entity extraction
+│   │   │   ├── memory_service.py    # Vector embeddings and similarity search
+│   │   │   ├── audit_service.py     # Architectural collision and contradiction reasoning
+│   │   │   ├── tracker_service.py   # GitHub Issues API integration client
+│   │   │   └── digest_service.py    # Deadline evaluation and digest compiler
 │   │   └── api/routes/
-│   │       ├── auth.py              # User authentication & workspace management
-│   │       ├── meetings.py          # Ingest, upload, transcript & memory ledger
-│   │       ├── staging.py           # HITL conflict resolution & ticket dispatch
-│   │       ├── digests.py           # Weekly digests & reminder generation
-│   │       └── settings.py          # Real-time API key & provider configuration
-│   ├── sample_data/                 # Sample transcripts (.vtt, .txt)
-│   ├── tests/                       # Modular test suites across all 5 engine phases
-│   ├── run_phase_tests.py           # Automated test runner across all engine phases
-│   ├── test_pipeline.py             # End-to-end regression test script
-│   └── requirements.txt
+│   │       ├── auth.py              # User authentication and workspace routing
+│   │       ├── meetings.py          # Meeting ingest, transcripts, and decision ledger
+│   │       ├── staging.py           # Conflict resolution and ticket commit gate
+│   │       ├── actions.py           # Action lineage and status lifecycle updates
+│   │       ├── digests.py           # Weekly digests and notifications
+│   │       └── settings.py          # API keys and execution mode configuration
+│   ├── sample_data/                 # Pre-recorded meeting transcripts and audio files
+│   ├── tests/                       # Automated regression and phase test suites
+│   └── requirements.txt             # Python dependencies
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx                  # 3-Pane Linear/Raycast inspired governance UI
-│   │   ├── api.ts                   # Type-safe API client with tenant headers
-│   │   ├── types.ts                 # Full TypeScript domain contracts
+│   │   ├── App.tsx                  # Core 3-pane governance workspace layout
+│   │   ├── api.ts                   # Centralized typed API client
+│   │   ├── types.ts                 # Shared TypeScript interfaces
 │   │   └── components/
-│   │       ├── TranscriptViewer.tsx # Timestamped diarized viewer with quote highlighting
-│   │       ├── ConflictDiffCard.tsx # Side-by-side Git diff contradiction resolver
-│   │       ├── ActionItemRow.tsx    # Inline editable task row with assignee & deadline
-│   │       ├── CommitBar.tsx        # Sticky approval bar with safety gate lock indicator
-│   │       ├── LiveMeetingListenerModal.tsx # Zero-cost live speech listener & visualizer
-│   │       ├── AuthModal.tsx        # Sign-in, registration & workspace switcher
-│   │       ├── IngestModal.tsx      # Multi-format file uploader & sample loader
-│   │       ├── WeeklyDigestModal.tsx# Per-person task breakdown & reminders
-│   │       ├── DecisionLedgerModal.tsx # Institutional decision timeline
-│   │       └── SettingsModal.tsx    # API credentials and live/mock toggle
+│   │       ├── LandingPage.tsx      # Product homepage with interactive simulation demo
+│   │       ├── CobaltSprite.tsx     # WebGL single-shader raytraced glass sentinel
+│   │       ├── TranscriptViewer.tsx # Diarized transcript view with evidence highlighting
+│   │       ├── ConflictDiffCard.tsx # Side-by-side contradiction resolution card
+│   │       ├── ActionItemRow.tsx    # Inline editable task row with status indicators
+│   │       ├── CommitBar.tsx        # Sticky approval bar with safety gate status
+│   │       ├── CommandPalette.tsx   # Cmd+K quick navigation and action palette
+│   │       ├── DecisionLedgerModal.tsx # Historical decision timeline
+│   │       ├── ActionLineageModal.tsx  # Cross-meeting task history and audit trail
+│   │       ├── LiveMeetingListenerModal.tsx # Continuous browser audio listener
+│   │       ├── IngestModal.tsx      # Transcript file upload and text paste dialog
+│   │       ├── WeeklyDigestModal.tsx# Per-assignee deliverable summary
+│   │       └── SettingsModal.tsx    # API key configuration and live/mock toggle
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tailwind.config.js
@@ -101,29 +98,32 @@ SyncState continuously audits newly proposed stances against the team's historic
 
 ---
 
-## 🚀 Getting Started
+## Local Development
 
 ### Prerequisites
-* **Python**: 3.10 or higher
-* **Node.js**: 18.0 or higher
-* **npm**: 9.0 or higher
+- Python 3.10+
+- Node.js 18.0+
+- npm 9.0+
 
----
-
-### Step 1: Start the Backend Service
+### 1. Backend Setup
 
 ```bash
 cd backend
+python -m venv .venv
+
+# On Linux/macOS:
+source .venv/bin/activate
+# On Windows:
+.venv\Scripts\activate
+
 pip install -r requirements.txt
-python -m app.main
+uvicorn app.main:app --reload --port 8000
 ```
 
-The FastAPI backend starts at `http://localhost:8000`.  
-Interactive OpenAPI documentation is available at `http://localhost:8000/docs`.
+The backend API will run at `http://localhost:8000`.  
+OpenAPI documentation is available at `http://localhost:8000/docs`.
 
----
-
-### Step 2: Start the Frontend Application
+### 2. Frontend Setup
 
 ```bash
 cd frontend
@@ -131,49 +131,57 @@ npm install
 npm run dev
 ```
 
-The Vite React application starts at `http://localhost:3000` (or `http://localhost:3001` if port 3000 is occupied).
+The Vite dev server runs at `http://localhost:3000`.
 
 ---
 
-### Step 3: Verify the Pipeline with Automated Tests
+## Deployment (Render.com)
 
-Run the full modular test suite covering all 5 architectural phases:
+SyncState is architected for clean separation between its backend API and frontend static asset hosting on Render:
 
-```bash
-cd backend
-python run_phase_tests.py --all
-```
+### Backend Service (Web Service)
+1. In Render, select **New +** > **Web Service** and connect your repository.
+2. Configure settings:
+   - **Root Directory**: `backend`
+   - **Runtime**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Health Check Path**: `/health`
+3. Environment variables:
+   - `PYTHON_VERSION`: `3.11.0`
+   - `INTEGRATION_MODE`: `mock` (or `live`)
+   - `DATABASE_PATH`: `syncstate.db`
+   - `GEMINI_API_KEY`: *(Optional) Google AI Studio API key*
 
-Run the complete end-to-end regression test:
-
-```bash
-cd backend
-python test_pipeline.py
-```
-
----
-
-## ⚙️ Configuration & Environment
-
-Configuration can be customized via `.env` in the `backend/` directory or updated live at runtime through the in-app **Settings** modal:
-
-| Variable | Default | Description |
-| :--- | :--- | :--- |
-| `DATABASE_PATH` | `syncstate.db` | SQLite database file location |
-| `GEMINI_API_KEY` | *(optional)* | Google Gemini API key for multimodal audio and embeddings |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model used for extraction and audit reasoning |
-| `INTEGRATION_MODE` | `mock` | `mock` for local deterministic execution, `live` for real tracker posting |
-| `LINEAR_API_KEY` | *(optional)* | Linear personal access token for live ticket creation |
-| `LINEAR_TEAM_ID` | `SYN` | Target Linear team key |
-| `GITHUB_TOKEN` | *(optional)* | GitHub personal access token for repository issue tracking |
-| `GITHUB_REPO` | *(optional)* | Target GitHub repository (`owner/repo`) |
-
-> **Note**: SyncState includes deterministic offline fallbacks for dense vector embeddings, NLI contradiction analysis, and tracker dispatch, allowing full functionality without requiring third-party API keys.
+### Frontend Service (Static Site)
+1. In Render, select **New +** > **Static Site** and connect your repository.
+2. Configure settings:
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm install && npm run build`
+   - **Publish Directory**: `dist`
+3. Environment variables:
+   - `VITE_API_URL`: `https://<your-backend-service>.onrender.com/api`
+4. In **Redirects / Rewrites**, add an SPA fallback route:
+   - **Type**: `Rewrite`
+   - **Source**: `/*`
+   - **Destination**: `/index.html`
 
 ---
 
-## 📄 License & Intellectual Property
+## Configuration & Environment Variables
 
-Copyright © 2026 SyncState. All rights reserved.
+| Variable | Scope | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `DATABASE_PATH` | Backend | `syncstate.db` | Path to the SQLite storage file |
+| `GEMINI_API_KEY` | Backend | *(optional)* | Google Gemini key for audio transcription and reasoning |
+| `GEMINI_MODEL` | Backend | `gemini-3-flash-preview` | Model for extraction and contradiction analysis |
+| `INTEGRATION_MODE` | Backend | `mock` | `mock` for deterministic execution, `live` for real GitHub dispatch |
+| `GITHUB_TOKEN` | Backend | *(optional)* | GitHub Personal Access Token (`repo` scope) |
+| `GITHUB_REPO` | Backend | *(optional)* | Target repository in `owner/repo` format |
+| `VITE_API_URL` | Frontend | `/api` | Base URL of the backend API for production builds |
 
-This software and its documentation are proprietary and confidential. Unauthorized copying, distribution, modification, public display, or commercial exploitation of this codebase via any medium is strictly prohibited without prior written authorization.
+---
+
+## License
+
+Proprietary and Confidential. All rights reserved.
