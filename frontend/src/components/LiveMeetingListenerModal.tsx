@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api';
 import { DiarizedTurn } from '../types';
+import { getMonogram } from '../utils/formatters';
 
 interface Props {
   onClose: () => void;
@@ -113,6 +114,14 @@ export const LiveMeetingListenerModal: React.FC<Props> = ({ onClose, onIngestSuc
       }
     };
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -380,64 +389,67 @@ export const LiveMeetingListenerModal: React.FC<Props> = ({ onClose, onIngestSuc
     recordedDuration > 1;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-200">
-        
+    <div
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-100"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#0a0a0c] border border-white/[0.1] rounded-[10px] w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Top Header */}
-        <div className="px-6 py-4 bg-zinc-950/80 border-b border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className={`p-2.5 rounded-xl ${isListening ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-zinc-800 text-zinc-400'}`}>
-              <Radio className={`w-5 h-5 ${isListening ? 'animate-pulse text-rose-500' : ''}`} />
+        <div className="px-6 py-4 bg-[#050507] border-b border-white/[0.08] flex items-center justify-between">
+          <div>
+            <div className="flex items-center space-x-2.5">
+              <h2 className="text-sm font-semibold text-zinc-100 tracking-tight">
+                Live meeting listener
+              </h2>
+              <span className="font-mono text-[10px] text-zinc-400 bg-white/[0.04] px-1.5 py-0.5 rounded-[4px] border border-white/[0.06]">
+                Dual-engine
+              </span>
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-base font-semibold text-zinc-100">Live Voice Meeting Listener</h2>
-                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                  Dual-Engine (Web Speech + Direct Audio)
-                </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
-                  Autonomous Speaker & Assignee Attribution
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Records real microphone audio and streams speech turns. NLP automatically identifies who is assigning what to whom.
-              </p>
-            </div>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Direct microphone stream with automated speaker &amp; assignee attribution
+            </p>
           </div>
 
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition"
+            className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] rounded-[5px] transition-colors flex items-center space-x-1"
+            title="Close modal (Escape)"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
+            <kbd className="hidden sm:inline-block text-[10px] font-mono text-zinc-500 bg-white/[0.06] px-1.5 py-0.5 rounded-[4px] select-none ml-1">
+              ESC
+            </kbd>
           </button>
         </div>
 
         {/* Live Audio Control Bar */}
-        <div className="px-6 py-3 bg-zinc-950/40 border-b border-zinc-800 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center space-x-3 flex-1">
+        <div className="px-6 py-3 bg-[#050507] border-b border-white/[0.07] flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center space-x-3 flex-1 min-w-0">
             <input
               type="text"
               value={meetingTitle}
               onChange={(e) => setMeetingTitle(e.target.value)}
-              placeholder="Meeting Title..."
-              className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500 flex-1 max-w-sm"
+              placeholder="Meeting title..."
+              className="bg-[#121314] border border-white/[0.08] rounded-[6px] px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-white/[0.2] flex-1 max-w-sm transition"
             />
 
             {/* Timer & Live Volume Meter */}
-            <div className="flex items-center space-x-3 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg">
-              <Clock className="w-4 h-4 text-zinc-400" />
-              <span className="font-mono text-sm text-zinc-200">{formatTimer(elapsedSeconds)}</span>
+            <div className="flex items-center space-x-2.5 bg-[#121314] border border-white/[0.08] px-2.5 py-1.5 rounded-[6px]">
+              <Clock className="w-3.5 h-3.5 text-zinc-500" />
+              <span className="font-mono tabular-nums text-xs text-zinc-200">{formatTimer(elapsedSeconds)}</span>
               {isListening && (
-                <div className="flex items-center space-x-1.5 pl-2 border-l border-zinc-800">
-                  <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping" title="Mic Recording" />
-                  <div className="flex items-end space-x-0.5 h-4 w-12">
+                <div className="flex items-center space-x-1.5 pl-2 border-l border-white/[0.08]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" title="Recording microphone" />
+                  <div className="flex items-end space-x-0.5 h-3.5 w-10">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                       <div
                         key={i}
-                        className="w-1.5 bg-emerald-400 rounded-t transition-all duration-75"
+                        className="w-1 bg-emerald-400/80 rounded-t transition-all duration-75"
                         style={{
-                          height: `${Math.max(15, (volumeLevel * (i * 0.2)) % 100)}%`,
+                          height: `${Math.max(20, (volumeLevel * (i * 0.2)) % 100)}%`,
                         }}
                       />
                     ))}
@@ -453,19 +465,19 @@ export const LiveMeetingListenerModal: React.FC<Props> = ({ onClose, onIngestSuc
               <button
                 type="button"
                 onClick={startListening}
-                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/20 transition active:scale-95"
+                className="px-3.5 py-1.5 rounded-[6px] text-xs font-medium bg-zinc-100 text-zinc-950 hover:bg-white flex items-center space-x-1.5 shadow-sm transition active:scale-[0.98]"
               >
-                <Mic className="w-4 h-4" />
-                <span>{recordedDuration > 0 ? 'Resume Recording' : 'Start Listening'}</span>
+                <Mic className="w-3.5 h-3.5" />
+                <span>{recordedDuration > 0 ? 'Resume recording' : 'Start listening'}</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={stopListening}
-                className="flex items-center space-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-xl text-sm font-medium transition active:scale-95"
+                className="px-3 py-1.5 rounded-[6px] text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 flex items-center space-x-1.5 transition active:scale-[0.98]"
               >
-                <Square className="w-4 h-4 text-amber-400" />
-                <span>Pause Recording</span>
+                <Square className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
+                <span>Pause recording</span>
               </button>
             )}
 
@@ -473,59 +485,57 @@ export const LiveMeetingListenerModal: React.FC<Props> = ({ onClose, onIngestSuc
               type="button"
               disabled={isSubmitting || !hasContentToSubmit}
               onClick={handleFinishMeeting}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium shadow-lg transition active:scale-95 ${
+              className={`px-3.5 py-1.5 rounded-[6px] text-xs font-medium flex items-center space-x-1.5 transition active:scale-[0.98] ${
                 hasContentToSubmit
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25 ring-1 ring-emerald-400/40 cursor-pointer animate-pulse'
-                  : 'bg-zinc-800 text-zinc-500 border border-zinc-700/50 cursor-not-allowed opacity-50'
+                  ? 'bg-zinc-100 text-zinc-950 hover:bg-white shadow-sm'
+                  : 'bg-white/[0.04] text-zinc-600 border border-white/[0.06] cursor-not-allowed'
               }`}
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{isSubmitting ? 'Transcribing & Auditing...' : 'End & Run Governance Audit'}</span>
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{isSubmitting ? 'Transcribing & auditing...' : 'End & audit meeting'}</span>
             </button>
           </div>
         </div>
 
         {/* View Tabs & Quick Helper Tools */}
-        <div className="px-6 py-2 bg-zinc-950/20 border-b border-zinc-800/80 flex items-center justify-between text-xs">
-          <div className="flex items-center space-x-2">
+        <div className="px-6 py-2.5 bg-[#050507] border-b border-white/[0.07] flex items-center justify-between text-xs">
+          <div className="flex items-center bg-[#000000] p-0.5 rounded-[6px] border border-white/[0.08] text-xs">
             <button
               onClick={() => setActiveTab('stream')}
-              className={`px-3 py-1 rounded-lg font-medium transition flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1 rounded-[5px] font-medium transition-all ${
                 activeTab === 'stream'
-                  ? 'bg-zinc-800 text-zinc-100 border border-zinc-700'
+                  ? 'bg-white/[0.08] text-white border border-white/[0.1] shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <Radio className="w-3.5 h-3.5" />
-              <span>Live Speech Stream ({turns.length})</span>
+              Live stream ({turns.length})
             </button>
             <button
               onClick={() => setActiveTab('editor')}
-              className={`px-3 py-1 rounded-lg font-medium transition flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1 rounded-[5px] font-medium transition-all ${
                 activeTab === 'editor'
-                  ? 'bg-zinc-800 text-zinc-100 border border-zinc-700'
+                  ? 'bg-white/[0.08] text-white border border-white/[0.1] shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Edit / Paste Notes</span>
+              Notes editor
             </button>
           </div>
 
           <div className="flex items-center space-x-2">
             <button
               onClick={handleLoadSampleScript}
-              className="text-indigo-400 hover:text-indigo-300 px-2.5 py-1 rounded bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 transition flex items-center space-x-1"
+              className="px-2.5 py-1 rounded-[5px] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs font-medium transition flex items-center space-x-1.5"
               title="Loads the 1-minute Manager Monologue script to test collision auditing immediately"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Quick-Load Manager Monologue</span>
+              <span>Quick-load monologue</span>
             </button>
 
             {(turns.length > 0 || manualText.trim() || pcmChunksRef.current.length > 0) && (
               <button
                 onClick={handleClearAll}
-                className="text-zinc-500 hover:text-rose-400 px-2 py-1 transition flex items-center space-x-1"
+                className="text-xs text-zinc-500 hover:text-rose-400 px-2 py-1 transition flex items-center space-x-1"
                 title="Clear current transcript & audio"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -536,114 +546,136 @@ export const LiveMeetingListenerModal: React.FC<Props> = ({ onClose, onIngestSuc
         </div>
 
         {/* Status & Error Alerts */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-zinc-950/20">
+        <div className="flex-1 overflow-y-auto bg-[#121314]">
           {statusMessage && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs flex items-start space-x-2 animate-in fade-in">
+            <div className="m-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-[6px] text-amber-300 text-xs flex items-start space-x-2 animate-in fade-in">
               <Volume2 className="w-4 h-4 mt-0.5 shrink-0 text-amber-400" />
               <span>{statusMessage}</span>
             </div>
           )}
 
           {error && (
-            <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
+            <div className="m-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-[6px] text-rose-300 text-xs flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
               <div className="flex items-start space-x-2 max-w-xl">
                 <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-rose-400" />
                 <div>
-                  <span className="font-semibold text-rose-200">Notice: </span>
+                  <span className="font-medium text-rose-200">Notice: </span>
                   <span>{error}</span>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleLoadSampleScript}
-                className="whitespace-nowrap px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs shadow-md transition active:scale-95 flex items-center space-x-1"
+                className="px-3 py-1 rounded-[5px] bg-zinc-100 text-zinc-950 font-medium text-xs shadow-sm hover:bg-white transition flex items-center space-x-1"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Load Monologue & Run Test</span>
+                <span>Load monologue &amp; test</span>
               </button>
             </div>
           )}
 
           {activeTab === 'stream' ? (
-            <>
+            <div className="h-full">
               {turns.length === 0 && !interimText && (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 text-zinc-500">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition ${
-                    isListening ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse' : 'bg-zinc-800/60 border border-zinc-700/50 text-zinc-400'
+                  <div className={`w-12 h-12 rounded-[8px] flex items-center justify-center mb-3 transition ${
+                    isListening ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30 animate-pulse' : 'bg-white/[0.04] border border-white/[0.08] text-zinc-400'
                   }`}>
-                    <Mic className="w-8 h-8" />
+                    <Mic className="w-5 h-5" />
                   </div>
-                  <p className="text-base font-medium text-zinc-300">
-                    {isListening ? 'Recording live microphone audio...' : 'Microphone Ready'}
+                  <p className="text-xs font-medium text-zinc-200">
+                    {isListening ? 'Recording live microphone audio...' : 'Microphone ready'}
                   </p>
-                  <p className="text-xs text-zinc-500 max-w-md mt-1.5 leading-relaxed">
+                  <p className="text-xs text-zinc-500 max-w-sm mt-1 leading-relaxed">
                     {isListening
-                      ? 'Speak freely into your microphone. Words stream live, and raw audio is recorded. When finished, click "End & Run Governance Audit".'
-                      : 'Click "Start Listening" and talk, or click "Quick-Load Manager Monologue" to test instant conflict resolution.'}
+                      ? 'Speak freely into your microphone. Words stream live, and raw audio is recorded. Click "End & audit meeting" when done.'
+                      : 'Click "Start listening" to speak, or use "Quick-load monologue" to test instant contradiction auditing.'}
                   </p>
                 </div>
               )}
 
-              {turns.map((turn, i) => (
-                <div
-                  key={i}
-                  className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 transition"
-                >
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="font-semibold text-zinc-300 flex items-center space-x-1.5">
-                      <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                      <span>Turn #{i + 1}</span>
-                    </span>
-                    <span className="font-mono text-[11px] text-zinc-500">{turn.timestamp}</span>
-                  </div>
-                  <p className="text-sm text-zinc-200 leading-relaxed">{turn.text}</p>
-                </div>
-              ))}
+              <div className="divide-y divide-white/[0.04]">
+                {turns.map((turn, i) => (
+                  <div
+                    key={i}
+                    className="py-3 px-6 flex items-start gap-4 transition-colors hover:bg-[#1a1b1e]"
+                  >
+                    {/* Left Gutter: Monospace Tabular Timestamp */}
+                    <div className="w-14 shrink-0 pt-0.5 select-none font-mono tabular-nums text-[11px] text-zinc-500">
+                      {turn.timestamp}
+                    </div>
 
-              {/* Real-time Interim Streaming Bubble */}
-              {interimText && (
-                <div className="p-3.5 rounded-xl bg-indigo-950/20 border border-indigo-500/30 animate-pulse">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="font-semibold text-indigo-300 flex items-center space-x-1.5">
-                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
-                      <span>Hearing Live Audio...</span>
-                    </span>
-                    <span className="font-mono text-[11px] text-indigo-400">{formatTimer(elapsedSeconds)}</span>
+                    {/* Main Column */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-[18px] h-[18px] rounded-[4px] bg-white/[0.06] border border-white/[0.08] text-[10px] font-mono text-zinc-300 flex items-center justify-center shrink-0 select-none">
+                            {getMonogram(turn.speaker)}
+                          </span>
+                          <span className="font-medium text-[13px] text-zinc-200">
+                            {turn.speaker}
+                          </span>
+                        </div>
+                        <span className="font-mono text-[10px] tabular-nums text-zinc-600 select-none">
+                          #{i + 1}
+                        </span>
+                      </div>
+                      <p className="text-[13.5px] text-zinc-300 leading-relaxed font-normal mt-1">
+                        {turn.text}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm text-zinc-300 italic">{interimText}</p>
-                </div>
-              )}
+                ))}
+
+                {/* Real-time Interim Streaming Bubble */}
+                {interimText && (
+                  <div className="py-3 px-6 flex items-start gap-4 bg-white/[0.02] border-l-2 border-l-indigo-400">
+                    <div className="w-14 shrink-0 pt-0.5 select-none font-mono tabular-nums text-[11px] text-indigo-400">
+                      {formatTimer(elapsedSeconds)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                        <span className="text-xs text-indigo-300 font-medium">Listening to speech...</span>
+                      </div>
+                      <p className="text-[13.5px] text-zinc-300 italic mt-1 leading-relaxed">
+                        {interimText}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div ref={turnsEndRef} />
-            </>
+            </div>
           ) : (
-            <div className="h-full flex flex-col space-y-2">
+            <div className="h-full p-6 flex flex-col space-y-2">
               <div className="text-xs text-zinc-400 flex items-center justify-between">
-                <span>Direct Meeting Notes / Script Input:</span>
-                <span className="text-[11px] text-zinc-500">Each new line is parsed as an autonomous turn</span>
+                <span>Direct speech notes / transcript input</span>
+                <span className="text-[11px] font-mono text-zinc-500">One turn per line</span>
               </div>
               <textarea
                 value={manualText}
                 onChange={(e) => setManualText(e.target.value)}
                 placeholder="Paste or type meeting speech lines here... (e.g. David, I need you to take ownership of user auth by next week)"
-                className="flex-1 w-full bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-100 font-mono focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
+                className="flex-1 w-full bg-[#0d0e10] border border-white/[0.08] rounded-[6px] p-4 text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-white/[0.2] resize-none leading-relaxed"
               />
             </div>
           )}
         </div>
 
         {/* Footer Guidance */}
-        <div className="px-6 py-3 bg-zinc-950/90 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
+        <div className="px-6 py-2.5 bg-[#050507] border-t border-white/[0.07] flex items-center justify-between text-xs text-zinc-400">
           <div className="flex items-center space-x-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>
+            <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+            <span className="text-[11px] text-zinc-400">
               {pcmChunksRef.current.length > 0 || isListening
-                ? `Direct audio active (${recordedDuration}s recorded). Click "End & Run Governance Audit" to transcribe and audit.`
-                : `Captured ${turns.length} turn(s). SyncState will cross-audit every decision and task against institutional memory on finish.`}
+                ? `Direct audio active (${recordedDuration}s). Click "End & audit meeting" to transcribe and audit.`
+                : `${turns.length} turn(s) staged. SyncState will cross-audit every decision and task against institutional memory on finish.`}
             </span>
           </div>
-          <span className="text-[11px] text-zinc-500 font-mono">
-            {isListening ? 'Recording Audio • Active' : 'Ready'}
+          <span className="text-[10px] text-zinc-500 font-mono tabular-nums">
+            {isListening ? 'RECORDING' : 'READY'}
           </span>
         </div>
       </div>

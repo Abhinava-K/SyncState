@@ -88,8 +88,8 @@ class TestPhase5DispatchAndDigest(unittest.TestCase):
         self.assertGreaterEqual(len(urgent_reminders), 1)
 
         # Check Markdown output contains section headers
-        self.assertIn("### 👤 Rahul", digest.markdown_summary)
-        self.assertIn("### 👤 Sarah", digest.markdown_summary)
+        self.assertIn("### Rahul", digest.markdown_summary)
+        self.assertIn("### Sarah", digest.markdown_summary)
         self.assertIn("Hotfix Auth", digest.markdown_summary)
 
 if __name__ == "__main__":

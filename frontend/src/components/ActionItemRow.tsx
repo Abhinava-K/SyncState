@@ -1,24 +1,19 @@
 import React, { useState } from 'react';
-import { ExtractedActionItem } from '../types';
-import { CheckSquare, Square, User, Calendar, ExternalLink, Flag } from 'lucide-react';
+import { ExtractedActionItem, DiarizedTurn } from '../types';
+import { CheckSquare, Square, ExternalLink } from 'lucide-react';
+import { findMatchingTurnIndex } from '../utils/formatters';
 
 interface Props {
   item: ExtractedActionItem;
+  turns?: DiarizedTurn[];
   onToggle: (id: string, current: boolean) => void;
   onUpdate: (id: string, updates: Partial<ExtractedActionItem>) => void;
   onHoverTurn: (turnIndex: number | null) => void;
 }
 
-export const ActionItemRow: React.FC<Props> = ({ item, onToggle, onUpdate, onHoverTurn }) => {
+export const ActionItemRow: React.FC<Props> = ({ item, turns, onToggle, onUpdate, onHoverTurn }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [taskText, setTaskText] = useState(item.task);
-
-  const priorityStyles = {
-    urgent: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-    high: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    medium: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-    low: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-  }[item.priority || 'medium'];
 
   const handleSave = () => {
     setIsEditing(false);
@@ -27,98 +22,141 @@ export const ActionItemRow: React.FC<Props> = ({ item, onToggle, onUpdate, onHov
     }
   };
 
+  const handleMouseEnter = () => {
+    const targetTurn = findMatchingTurnIndex(
+      {
+        turn_index: item.turn_index,
+        verbatim_quote: item.verbatim_quote,
+        assignee: item.assignee,
+        task: item.task,
+      },
+      turns
+    );
+    onHoverTurn(targetTurn);
+  };
+
   return (
     <div
-      onMouseEnter={() => onHoverTurn(item.turn_index)}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => onHoverTurn(null)}
-      className={`p-3 rounded-lg border transition-all flex items-start space-x-3 ${
-        item.is_approved
-          ? 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700'
-          : 'bg-zinc-950/40 border-zinc-900 opacity-60'
+      className={`px-6 py-3 flex items-start justify-between gap-4 hover:bg-[#1a1b1e] transition-colors ${
+        item.is_approved ? 'opacity-100' : 'opacity-40'
       }`}
     >
-      {/* Checkbox */}
-      <button
-        onClick={() => onToggle(item.id, item.is_approved)}
-        className="mt-0.5 text-zinc-400 hover:text-indigo-400 transition-colors focus:outline-none"
-      >
-        {item.is_approved ? (
-          <CheckSquare className="w-4 h-4 text-indigo-400" />
-        ) : (
-          <Square className="w-4 h-4 text-zinc-600" />
-        )}
-      </button>
-
-      {/* Main Content */}
-      <div className="flex-1 space-y-1.5 min-w-0">
-        {isEditing ? (
-          <input
-            type="text"
-            value={taskText}
-            onChange={(e) => setTaskText(e.target.value)}
-            onBlur={handleSave}
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 outline-none focus:ring-1 focus:ring-indigo-500"
-            autoFocus
-          />
-        ) : (
-          <p
-            onClick={() => setIsEditing(true)}
-            className="text-xs font-medium text-zinc-200 leading-snug cursor-text hover:text-white"
-          >
-            {item.task}
-          </p>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
-          {/* Assignee */}
-          <div className="flex items-center space-x-1 bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 font-medium">
-            <User className="w-3 h-3 text-indigo-400" />
-            <span>{item.assignee}</span>
-          </div>
-
-          {/* Status Pill */}
-          <span className={`px-2 py-0.5 rounded-full border text-[10px] font-mono font-semibold flex items-center space-x-1 ${
-            item.status === 'CLOSED'
-              ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
-              : item.status === 'BLOCKED'
-              ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${item.status === 'CLOSED' ? 'bg-zinc-500' : 'bg-emerald-400 animate-pulse'}`} />
-            <span>{item.status || 'RUNNING'}</span>
-          </span>
-
-          {/* Deadline */}
-          {item.deadline && (
-            <div className="flex items-center space-x-1 bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 font-mono">
-              <Calendar className="w-3 h-3 text-amber-400" />
-              <span>{item.deadline}</span>
-            </div>
-          )}
-
-          {/* Priority */}
-          <span className={`px-1.5 py-0.5 rounded border text-[10px] uppercase font-mono ${priorityStyles}`}>
-            {item.priority}
-          </span>
-
-          {/* External Synced Ticket */}
-          {item.external_issue_url ? (
-            <a
-              href={item.external_issue_url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center space-x-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded hover:bg-emerald-500/20 transition-colors font-mono"
-            >
-              <span>{item.external_issue_url.split('/').pop()}</span>
-              <ExternalLink className="w-2.5 h-2.5" />
-            </a>
+      <div className="flex items-start space-x-3 min-w-0 flex-1">
+        {/* Checkbox */}
+        <button
+          onClick={() => onToggle(item.id, item.is_approved)}
+          className="mt-0.5 text-zinc-400 hover:text-white transition-colors focus:outline-none shrink-0"
+        >
+          {item.is_approved ? (
+            <CheckSquare className="w-4 h-4 text-zinc-100" />
           ) : (
-            <span className="text-zinc-500 text-[10px] italic">Ready to Dispatch</span>
+            <Square className="w-4 h-4 text-zinc-600 hover:text-zinc-400" />
           )}
+        </button>
+
+        {/* Content */}
+        <div className="space-y-1 min-w-0 flex-1">
+          {isEditing ? (
+            <input
+              type="text"
+              value={taskText}
+              onChange={(e) => setTaskText(e.target.value)}
+              onBlur={handleSave}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              className="w-full bg-[#0d0e10] border border-white/[0.15] rounded-[5px] px-2 py-1 text-xs text-zinc-100 outline-none focus:border-white/[0.3]"
+              autoFocus
+            />
+          ) : (
+            <p
+              onClick={() => setIsEditing(true)}
+              className="text-[13.5px] font-medium text-zinc-100 leading-snug cursor-text hover:text-white transition-colors"
+            >
+              {item.task}
+            </p>
+          )}
+
+          {/* Compact Inline Metadata: Minimalist Linear Dot + Monospace Text */}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 font-mono tabular-nums">
+            <span className="text-zinc-300 font-medium">
+              {item.assignee}
+            </span>
+
+            {item.priority && (
+              <>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 lowercase">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      item.priority === 'urgent'
+                        ? 'bg-rose-400'
+                        : item.priority === 'high'
+                        ? 'bg-amber-400'
+                        : item.priority === 'medium'
+                        ? 'bg-sky-400'
+                        : 'bg-zinc-500'
+                    }`}
+                  />
+                  <span>{item.priority}</span>
+                </span>
+              </>
+            )}
+
+            {item.deadline && (
+              <>
+                <span>·</span>
+                <span className="text-zinc-400">
+                  due {item.deadline}
+                </span>
+              </>
+            )}
+
+            {item.status && (
+              <>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium lowercase">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      item.status === 'CLOSED'
+                        ? 'bg-emerald-400'
+                        : item.status === 'BLOCKED'
+                        ? 'bg-rose-400'
+                        : 'bg-zinc-500'
+                    }`}
+                  />
+                  <span
+                    className={
+                      item.status === 'CLOSED'
+                        ? 'text-emerald-400/90'
+                        : item.status === 'BLOCKED'
+                        ? 'text-rose-400'
+                        : 'text-zinc-400'
+                    }
+                  >
+                    {item.status.toLowerCase()}
+                  </span>
+                </span>
+              </>
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* Right Column: Status / External Link */}
+      <div className="shrink-0 pt-0.5">
+        {item.external_issue_url ? (
+          <a
+            href={item.external_issue_url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center space-x-1 text-[11px] font-mono text-zinc-400 hover:text-zinc-200 transition-colors"
+          >
+            <span>{item.external_issue_url.split('/').pop()}</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        ) : null}
       </div>
     </div>
   );
 };
-

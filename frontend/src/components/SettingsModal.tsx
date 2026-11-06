@@ -20,6 +20,15 @@ export const SettingsModal: React.FC<Props> = ({ onClose, onSaved }) => {
   const [linearKey, setLinearKey] = useState('');
   const [currentConfig, setCurrentConfig] = useState<any>(null);
 
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   useEffect(() => {
     api.getSettings()
       .then((cfg) => {
@@ -54,58 +63,73 @@ export const SettingsModal: React.FC<Props> = ({ onClose, onSaved }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-xl flex flex-col shadow-2xl overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-100"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#0a0a0c] border border-white/[0.1] rounded-[10px] w-full max-w-xl flex flex-col shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
-          <div className="flex items-center space-x-2">
-            <Settings className="w-5 h-5 text-indigo-400" />
-            <div>
-              <h2 className="text-base font-bold text-zinc-100">Live Integrations & Credentials</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Connect live Gemini AI and your real GitHub/Linear issue board
-              </p>
+        <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#050507]">
+          <div>
+            <div className="flex items-center space-x-2.5">
+              <h2 className="text-sm font-semibold text-zinc-100 tracking-tight">
+                Integrations &amp; credentials
+              </h2>
+              <span className="font-mono text-[10px] text-zinc-400 bg-white/[0.04] px-1.5 py-0.5 rounded-[4px] border border-white/[0.06]">
+                Settings
+              </span>
             </div>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Configure live Gemini AI API and GitHub issue dispatch
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors"
+            className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] rounded-[5px] transition-colors flex items-center space-x-1"
           >
             <X className="w-4 h-4" />
+            <kbd className="hidden sm:inline-block text-[10px] font-mono text-zinc-500 bg-white/[0.06] px-1.5 py-0.5 rounded-[4px] select-none ml-1">
+              ESC
+            </kbd>
           </button>
         </div>
 
         {/* Content Form */}
-        <form onSubmit={handleSave} className="p-6 space-y-5">
+        <form onSubmit={handleSave} className="p-6 space-y-4 bg-[#121314]">
           {statusMessage && (
-            <div className={`p-3 rounded-lg text-xs flex items-center space-x-2 ${
-              statusMessage.startsWith('Error') 
-                ? 'bg-rose-950/40 border border-rose-500/40 text-rose-300' 
-                : 'bg-emerald-950/40 border border-emerald-500/40 text-emerald-300'
-            }`}>
+            <div
+              className={`p-3 rounded-[6px] text-xs flex items-center space-x-2 animate-in fade-in ${
+                statusMessage.startsWith('Error')
+                  ? 'bg-rose-500/10 border border-rose-500/20 text-rose-300'
+                  : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300'
+              }`}
+            >
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               <span>{statusMessage}</span>
             </div>
           )}
 
           {/* Integration Mode Switch */}
-          <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
+          <div className="p-3.5 rounded-[8px] bg-white/[0.02] border border-white/[0.08] space-y-2">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xs font-bold text-zinc-200">Execution Mode</span>
-                <p className="text-[11px] text-zinc-400">
-                  {integrationMode === 'live' 
-                    ? '⚡ LIVE MODE: Creates real issues on GitHub/Linear using your credentials'
-                    : '🛡️ MOCK MODE: Deterministic zero-failure simulated tickets (ideal for hackathon demos)'}
+                <span className="text-xs font-medium text-zinc-200">Execution Mode</span>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  {integrationMode === 'live'
+                    ? 'Creates real issues on GitHub using your credentials'
+                    : 'Deterministic simulated tickets for offline/demo workflows'}
                 </p>
               </div>
-              <div className="flex items-center bg-zinc-900 p-0.5 rounded-lg border border-zinc-800 text-xs">
+              <div className="flex items-center bg-[#000000] p-0.5 rounded-[6px] border border-white/[0.08] text-xs">
                 <button
                   type="button"
                   onClick={() => setIntegrationMode('mock')}
-                  className={`px-3 py-1 rounded-md font-medium transition-all ${
+                  className={`px-2.5 py-1 rounded-[5px] font-medium transition-all ${
                     integrationMode === 'mock'
-                      ? 'bg-zinc-800 text-white shadow-sm'
+                      ? 'bg-white/[0.08] text-white border border-white/[0.1] shadow-sm'
                       : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
@@ -114,9 +138,9 @@ export const SettingsModal: React.FC<Props> = ({ onClose, onSaved }) => {
                 <button
                   type="button"
                   onClick={() => setIntegrationMode('live')}
-                  className={`px-3 py-1 rounded-md font-medium transition-all ${
+                  className={`px-2.5 py-1 rounded-[5px] font-medium transition-all ${
                     integrationMode === 'live'
-                      ? 'bg-indigo-600 text-white shadow-sm'
+                      ? 'bg-white/[0.08] text-white border border-white/[0.1] shadow-sm'
                       : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
@@ -127,14 +151,14 @@ export const SettingsModal: React.FC<Props> = ({ onClose, onSaved }) => {
           </div>
 
           {/* Gemini API Key */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <label className="font-semibold text-zinc-300 flex items-center space-x-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <label className="font-medium text-zinc-300 flex items-center space-x-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                 <span>Google Gemini API Key</span>
               </label>
               {currentConfig?.gemini_api_key_configured && (
-                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded">
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded-[3px]">
                   Configured
                 </span>
               )}
@@ -145,30 +169,30 @@ export const SettingsModal: React.FC<Props> = ({ onClose, onSaved }) => {
                 placeholder="AIzaSy... (leave blank to keep current)"
                 value={geminiKey}
                 onChange={(e) => setGeminiKey(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 pr-9"
+                className="w-full bg-[#0d0e10] border border-white/[0.08] rounded-[6px] px-3 py-1.5 text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-white/[0.2] pr-9 transition"
               />
               <button
                 type="button"
                 onClick={() => setShowKeys(!showKeys)}
-                className="absolute right-2.5 top-2.5 text-zinc-500 hover:text-zinc-300"
+                className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300"
               >
                 {showKeys ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
             <p className="text-[10px] text-zinc-500">
-              Powers live Gemini 2.5 Flash diarization, audio transcription & conflict reasoner.
+              Powers live Gemini diarization, audio transcription &amp; contradiction reasoner.
             </p>
           </div>
 
           {/* GitHub Integration */}
-          <div className="space-y-3 pt-2 border-t border-zinc-800/80">
+          <div className="space-y-2 pt-2 border-t border-white/[0.07]">
             <div className="flex items-center justify-between text-xs">
-              <label className="font-semibold text-zinc-300 flex items-center space-x-1.5">
+              <label className="font-medium text-zinc-300 flex items-center space-x-1.5">
                 <Github className="w-3.5 h-3.5 text-zinc-200" />
                 <span>GitHub Issues Integration</span>
               </label>
               {currentConfig?.github_configured && (
-                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded">
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded-[3px]">
                   Connected
                 </span>
               )}
@@ -182,35 +206,35 @@ export const SettingsModal: React.FC<Props> = ({ onClose, onSaved }) => {
                   placeholder="owner/repo (e.g. acme/roadmap)"
                   value={githubRepo}
                   onChange={(e) => setGithubRepo(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-[#0d0e10] border border-white/[0.08] rounded-[6px] px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-white/[0.2] transition"
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-zinc-400 mb-1">GitHub Personal Access Token</label>
+                <label className="block text-[11px] text-zinc-400 mb-1">Personal Access Token</label>
                 <input
                   type={showKeys ? 'text' : 'password'}
-                  placeholder="ghp_... (with 'repo' scope)"
+                  placeholder="ghp_... (repo scope)"
                   value={githubToken}
                   onChange={(e) => setGithubToken(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-[#0d0e10] border border-white/[0.08] rounded-[6px] px-3 py-1.5 text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-white/[0.2] transition"
                 />
               </div>
             </div>
           </div>
 
           {/* Footer Save Button */}
-          <div className="pt-3 flex items-center justify-end space-x-2 border-t border-zinc-800">
+          <div className="pt-3 flex items-center justify-end space-x-2 border-t border-white/[0.07]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg font-medium transition-colors"
+              className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] rounded-[5px] font-medium transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-5 py-2 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold flex items-center space-x-1.5 shadow-md shadow-indigo-600/20 transition-all"
+              className="px-3.5 py-1.5 text-xs bg-zinc-100 hover:bg-white text-zinc-950 rounded-[6px] font-medium flex items-center space-x-1.5 shadow-sm transition active:scale-[0.98] disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{saving ? 'Saving...' : 'Save Configuration'}</span>
@@ -221,4 +245,3 @@ export const SettingsModal: React.FC<Props> = ({ onClose, onSaved }) => {
     </div>
   );
 };
-

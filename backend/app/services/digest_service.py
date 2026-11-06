@@ -32,7 +32,7 @@ class DigestService:
 
         members: List[PersonDigest] = []
         md_lines = [
-            "# 📊 SyncState Weekly Team Execution Digest",
+            "# SyncState Weekly Team Execution Digest",
             f"*Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}*",
             "",
             "---"
@@ -78,24 +78,24 @@ class DigestService:
             ))
 
             # Build markdown block for this member
-            md_lines.append(f"\n### 👤 {assignee}")
+            md_lines.append(f"\n### {assignee}")
             md_lines.append(f"- **Active Commitments**: {len(active_items)} tasks")
             md_lines.append(f"- **Decisions Authored/Led**: {dec_count} institutional decisions")
             
             urgent_tasks = [r for r in reminders if r.urgency in ["critical_24h", "upcoming_48h"]]
             if urgent_tasks:
-                md_lines.append("- ⚠️ **Upcoming Deadlines (Next 48h)**:")
+                md_lines.append("- **Upcoming Deadlines (Next 48h)**:")
                 for u in urgent_tasks:
-                    badge = "🔴 DUE <24h" if u.urgency == "critical_24h" else "🟡 DUE <48h"
+                    badge = "[DUE <24h]" if u.urgency == "critical_24h" else "[DUE <48h]"
                     md_lines.append(f"  * {badge}: `{u.task}` (Deadline: {u.deadline})")
 
             md_lines.append("- **Task Breakdown**:")
             for item in active_items:
                 link = f"([View Ticket]({item.external_issue_url}))" if item.external_issue_url else "(Pending Dispatch)"
-                status_icon = "✅" if item.is_approved else "⏳"
+                status_icon = "[Verified]" if item.is_approved else "[Staged]"
                 md_lines.append(f"  * {status_icon} **{item.task}** — *{item.deadline}* {link}")
 
-        md_lines.append("\n---\n*SyncState Autonomous Meeting-to-Execution Engine*")
+        md_lines.append("\n---\n*SyncState Meeting-to-Execution Engine*")
 
         return WeeklyDigestResponse(
             generated_at=datetime.now().isoformat(),

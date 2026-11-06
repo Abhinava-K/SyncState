@@ -1,29 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   X,
-  Activity,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  GitBranch,
   Search,
-  Sparkles,
-  ArrowRight,
-  User,
-  Calendar,
-  Layers,
+  Check,
+  RotateCcw,
   ChevronDown,
   ChevronUp,
-  RotateCcw,
-  GitCommit,
-  ExternalLink,
-  MessageSquare,
-  Check,
-  Zap,
-  Filter
 } from 'lucide-react';
 import { api } from '../api';
-import { ExtractedActionItem, ActionHistoryEvent, ActionLineageResponse } from '../types';
+import { ExtractedActionItem, ActionLineageResponse } from '../types';
+import { humanizeTitle, getMonogram } from '../utils/formatters';
 
 interface Props {
   onClose: () => void;
@@ -44,7 +30,6 @@ export const ActionLineageModal: React.FC<Props> = ({ onClose, onRefreshMeetings
     try {
       const res = await api.getActionLineage();
       setData(res);
-      // Auto-expand all actions that have history
       const initialExpanded: Record<string, boolean> = {};
       res.actions.forEach((a) => {
         initialExpanded[a.id] = true;
@@ -61,11 +46,20 @@ export const ActionLineageModal: React.FC<Props> = ({ onClose, onRefreshMeetings
     fetchLineage();
   }, []);
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleToggleStatus = async (action: ExtractedActionItem) => {
     const nextStatus = action.status === 'RUNNING' ? 'CLOSED' : 'RUNNING';
     try {
       await api.updateActionStatus(action.id, nextStatus, undefined, `User toggled action to ${nextStatus}.`);
-      setActionSuccessNotice(`Action "${action.task}" marked as ${nextStatus}!`);
+      setActionSuccessNotice(`Action marked as ${nextStatus}!`);
       setTimeout(() => setActionSuccessNotice(null), 3500);
       await fetchLineage();
       if (onRefreshMeetings) onRefreshMeetings();
@@ -106,365 +100,354 @@ export const ActionLineageModal: React.FC<Props> = ({ onClose, onRefreshMeetings
   });
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden font-sans ring-1 ring-white/10 animate-in fade-in duration-200">
-        
-        {/* Top Header */}
-        <div className="px-6 py-4 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-indigo-400 shadow-inner">
-              <GitBranch className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-base font-bold text-white tracking-tight">
-                  Cross-Meeting Action Ledger & Lineage Tracker
-                </h2>
-                <span className="text-[10px] font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full uppercase">
-                  Multi-Session Audit
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Tracks staged deliverables across meetings, modifications made over time, status changes, and team handoffs.
-              </p>
+    <div
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-100"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#0a0a0c] border border-white/[0.1] rounded-[10px] w-full max-w-5xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header: Sentence Case, High-Contrast Action CTAs */}
+        <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#050507]">
+          <div>
+            <div className="flex items-center space-x-2.5">
+              <h2 className="text-sm font-semibold text-zinc-100 tracking-tight">
+                Action lineage
+              </h2>
+              <span className="font-mono text-[10px] tabular-nums text-zinc-400 bg-white/[0.04] px-1.5 py-0.5 rounded-[4px]">
+                {filteredActions.length} deliverables
+              </span>
             </div>
           </div>
 
           <div className="flex items-center space-x-3">
             <button
-              onClick={handleSeedJourney}
               disabled={isSeeding}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition active:scale-95 disabled:opacity-50"
-              title="Test the user scenario: Meeting 1 (Alex creates) -> Meeting 2 (Alex modifies) -> Meeting 3 (Alex completes, Bobby inherits)"
+              onClick={handleSeedJourney}
+              className="px-3 py-1.5 rounded-[6px] text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] transition shadow-sm active:scale-95"
             >
-              <Sparkles className="w-3.5 h-3.5 text-white" />
-              <span>{isSeeding ? 'Seeding Journey...' : 'Seed 3-Meeting Journey (Alex → Bobby)'}</span>
+              {isSeeding ? 'Seeding...' : 'Seed 3-Meeting Journey'}
             </button>
 
             <button
               onClick={onClose}
-              className="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition"
+              className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] rounded-[5px] transition-colors flex items-center space-x-1"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
+              <kbd className="hidden sm:inline-block text-[10px] font-mono text-zinc-500 bg-white/[0.06] px-1.5 py-0.5 rounded-[4px] select-none ml-1">
+                ESC
+              </kbd>
             </button>
           </div>
         </div>
 
-        {/* Success Notice Banner */}
+        {/* Notice Banner */}
         {actionSuccessNotice && (
-          <div className="px-6 py-2.5 bg-emerald-500/10 border-b border-emerald-500/20 text-xs text-emerald-300 flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="px-6 py-2 bg-emerald-500/10 border-b border-emerald-500/20 text-xs text-emerald-300 flex items-center space-x-2 font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
             <span>{actionSuccessNotice}</span>
           </div>
         )}
 
-        {/* Metrics Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-6 py-3.5 bg-zinc-950/60 border-b border-zinc-800/80 shrink-0">
-          <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800 flex items-center justify-between">
-            <div>
-              <div className="text-[10px] uppercase font-mono text-zinc-400">Total Tracked Actions</div>
-              <div className="text-lg font-bold font-mono text-white">{data?.total_actions || 0}</div>
-            </div>
-            <Layers className="w-4 h-4 text-zinc-500" />
+        {/* High-Density Summary Strip: Monospace Tabular Nums */}
+        <div className="px-6 py-2.5 bg-[#050507] border-b border-white/[0.07] flex items-center justify-between text-xs font-mono tabular-nums text-zinc-400">
+          <div className="flex items-center space-x-6">
+            <span>
+              Total: <strong className="text-zinc-200">{data?.total_actions || 0}</strong>
+            </span>
+            <span className="flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+              <span>
+                Running: <strong className="text-emerald-400">{data?.running_count || 0}</strong>
+              </span>
+            </span>
+            <span>
+              Closed: <strong className="text-zinc-200">{data?.closed_count || 0}</strong>
+            </span>
+            <span>
+              Blocked: <strong className="text-rose-400">{data?.blocked_count || 0}</strong>
+            </span>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800 flex items-center justify-between">
-            <div>
-              <div className="text-[10px] uppercase font-mono text-emerald-400 flex items-center space-x-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Running Actions</span>
-              </div>
-              <div className="text-lg font-bold font-mono text-emerald-400">{data?.running_count || 0}</div>
-            </div>
-            <Activity className="w-4 h-4 text-emerald-400" />
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800 flex items-center justify-between">
-            <div>
-              <div className="text-[10px] uppercase font-mono text-zinc-400">Closed / Completed</div>
-              <div className="text-lg font-bold font-mono text-zinc-300">{data?.closed_count || 0}</div>
-            </div>
-            <CheckCircle2 className="w-4 h-4 text-zinc-400" />
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800 flex items-center justify-between">
-            <div>
-              <div className="text-[10px] uppercase font-mono text-rose-400">Blocked / Pending</div>
-              <div className="text-lg font-bold font-mono text-rose-400">{data?.blocked_count || 0}</div>
-            </div>
-            <AlertCircle className="w-4 h-4 text-rose-400" />
+          <div className="text-[11px] text-zinc-500">
+            Audit verification synced
           </div>
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="px-6 py-3 bg-zinc-950/40 border-b border-zinc-800/60 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="px-6 py-3 bg-[#000000] border-b border-white/[0.07] flex flex-wrap items-center justify-between gap-3 shrink-0">
           {/* Status Tabs */}
-          <div className="flex items-center space-x-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs">
+          <div className="flex items-center bg-[#050507] p-0.5 rounded-[6px] border border-white/[0.08] text-xs">
             {(['ALL', 'RUNNING', 'CLOSED', 'BLOCKED'] as const).map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1 rounded-lg text-xs font-mono transition ${
+                className={`px-3 py-1 rounded-[5px] text-xs font-medium transition-all ${
                   statusFilter === st
-                    ? 'bg-zinc-800 text-white font-semibold shadow'
+                    ? 'bg-white/[0.08] text-white border border-white/[0.1] shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                {st === 'ALL' ? 'All Deliverables' : st}
+                {st === 'ALL' ? 'All Deliverables' : st.charAt(0) + st.slice(1).toLowerCase()}
               </button>
             ))}
           </div>
 
           {/* Search Input */}
-          <div className="relative min-w-[240px]">
+          <div className="relative min-w-[260px]">
             <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filter by task, assignee (e.g. Alex, Bobby)..."
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3.5 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition font-sans"
+              placeholder="Filter by task or assignee..."
+              className="w-full bg-[#050507] border border-white/[0.08] rounded-[6px] pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-white/[0.2] transition"
             />
           </div>
         </div>
 
-        {/* Main Content Area: Transcript of Staged Actions */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Main Content Area: Flush Divided Ledger Rows */}
+        <div className="flex-1 overflow-y-auto">
           {isLoading ? (
-            <div className="py-20 text-center text-zinc-400 font-mono text-xs animate-pulse">
-              Loading cross-meeting action lineage audit trail...
+            <div className="p-6 space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="py-4 flex items-start gap-3 animate-pulse border-b border-white/[0.04]">
+                  <div className="w-2 h-2 rounded-[2px] bg-white/[0.06] mt-2 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="w-64 h-3.5 bg-white/[0.05] rounded-[4px]" />
+                    <div className="w-96 h-3 bg-white/[0.03] rounded-[4px]" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredActions.length === 0 ? (
-            <div className="py-16 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-zinc-800/50 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
-                <GitBranch className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-semibold text-zinc-200">No actions found</h3>
-              <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-                No deliverables match your search criteria. Ingest a meeting transcript or click "Seed 3-Meeting Journey" above to simulate cross-meeting action tracking.
+            <div className="py-20 text-center space-y-2">
+              <p className="text-xs text-zinc-400">No deliverables match filter criteria.</p>
+              <p className="text-[11px] text-zinc-600 font-mono">
+                Ingest meeting transcripts or click "Seed 3-Meeting Journey" above.
               </p>
             </div>
           ) : (
-            filteredActions.map((action) => {
-              const isExpanded = expandedActionIds[action.id] ?? true;
-              const historyCount = action.history?.length || 0;
+            <div className="border-y border-white/[0.06] divide-y divide-white/[0.06] bg-white/[0.01]">
+              {filteredActions.map((action) => {
+                const isExpanded = expandedActionIds[action.id] ?? true;
+                const historyCount = action.history?.length || 0;
+                const originInfo = action.origin_meeting_title
+                  ? humanizeTitle(action.origin_meeting_title)
+                  : null;
 
-              return (
-                <div
-                  key={action.id}
-                  className={`rounded-2xl border transition-all ${
-                    action.status === 'RUNNING'
-                      ? 'bg-zinc-900/80 border-indigo-500/30 shadow-lg shadow-indigo-950/20'
-                      : action.status === 'CLOSED'
-                      ? 'bg-zinc-900/40 border-zinc-800 opacity-90'
-                      : 'bg-rose-950/10 border-rose-500/30'
-                  }`}
-                >
-                  {/* Action Main Row */}
-                  <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="space-y-1.5 flex-1">
-                      
-                      {/* Status, Priority, & Origin Meeting Pills */}
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                const isRunning = action.status === 'RUNNING';
+                const isClosed = action.status === 'CLOSED';
+
+                return (
+                  <div
+                    key={action.id}
+                    className={`hover:bg-white/[0.02] transition-colors ${
+                      isClosed ? 'opacity-70' : 'opacity-100'
+                    }`}
+                  >
+                    {/* Main Row */}
+                    <div className="px-6 py-4 flex flex-col md:flex-row md:items-start justify-between gap-4">
+                      <div className="flex items-start space-x-3.5 min-w-0 flex-1">
+                        {/* Status Square */}
                         <span
-                          className={`font-mono text-[11px] font-semibold px-2.5 py-0.5 rounded-full border flex items-center space-x-1.5 ${
-                            action.status === 'RUNNING'
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : action.status === 'CLOSED'
-                              ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
-                              : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                          className={`w-1.5 h-1.5 rounded-[2px] mt-2 shrink-0 ${
+                            isRunning
+                              ? 'bg-emerald-400'
+                              : isClosed
+                              ? 'bg-zinc-600'
+                              : 'bg-rose-400'
                           }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              action.status === 'RUNNING' ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'
-                            }`}
-                          />
-                          <span>{action.status}</span>
-                        </span>
+                        />
 
-                        <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-                          Priority: {action.priority.toUpperCase()}
-                        </span>
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          {/* Metadata row */}
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-medium lowercase">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isRunning
+                                    ? 'bg-emerald-400'
+                                    : isClosed
+                                    ? 'bg-zinc-600'
+                                    : 'bg-rose-400'
+                                }`}
+                              />
+                              <span
+                                className={
+                                  isRunning
+                                    ? 'text-emerald-400/90'
+                                    : isClosed
+                                    ? 'text-zinc-500'
+                                    : 'text-rose-400'
+                                }
+                              >
+                                {action.status.toLowerCase()}
+                              </span>
+                            </span>
 
-                        {action.origin_meeting_title && (
-                          <span className="text-[11px] text-zinc-400 font-mono flex items-center space-x-1 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
-                            <Calendar className="w-3 h-3 text-zinc-500" />
-                            <span>Origin: {action.origin_meeting_title}</span>
-                            {action.origin_meeting_date && <span>({action.origin_meeting_date})</span>}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Task Title */}
-                      <h3 className="text-sm font-semibold text-white tracking-tight pt-1">
-                        {action.task}
-                      </h3>
-
-                      {/* Assignee & Predecessor Ribbon */}
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400 pt-0.5">
-                        <span className="flex items-center space-x-1.5 text-zinc-300 font-medium bg-zinc-950/70 px-2 py-0.5 rounded border border-zinc-800">
-                          <User className="w-3 h-3 text-indigo-400" />
-                          <span>Assignee: <strong>{action.assignee}</strong></span>
-                        </span>
-
-                        {action.deadline && (
-                          <span className="flex items-center space-x-1 font-mono text-[11px] text-zinc-400">
-                            <Clock className="w-3 h-3 text-zinc-500" />
-                            <span>Target: {action.deadline}</span>
-                          </span>
-                        )}
-
-                        {action.parent_action_id && (
-                          <span className="text-[11px] font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20 flex items-center space-x-1">
-                            <GitCommit className="w-3 h-3" />
-                            <span>↳ Follow-up implementation linked to prior schema definition</span>
-                          </span>
-                        )}
-                      </div>
-
-                    </div>
-
-                    {/* Action Buttons: Toggle Status & Expand Timeline */}
-                    <div className="flex items-center space-x-2.5 shrink-0 self-start md:self-center">
-                      <button
-                        onClick={() => handleToggleStatus(action)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 flex items-center space-x-1.5 ${
-                          action.status === 'RUNNING'
-                            ? 'bg-zinc-800 hover:bg-emerald-950/50 hover:text-emerald-300 border-zinc-700 text-zinc-200'
-                            : 'bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border-indigo-500/30'
-                        }`}
-                      >
-                        {action.status === 'RUNNING' ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>Mark as Closed</span>
-                          </>
-                        ) : (
-                          <>
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            <span>Re-open Action</span>
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => toggleExpand(action.id)}
-                        className="p-1.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 transition text-xs flex items-center space-x-1"
-                        title="Toggle Cross-Meeting Audit Transcript"
-                      >
-                        <span className="font-mono text-[11px] pr-1">{historyCount} events</span>
-                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* EXPANDABLE CHRONOLOGICAL AUDIT TRANSCRIPT */}
-                  {isExpanded && action.history && action.history.length > 0 && (
-                    <div className="px-5 pb-5 pt-2 border-t border-zinc-800/80 bg-zinc-950/50 rounded-b-2xl">
-                      <div className="text-[11px] uppercase font-mono font-semibold tracking-wider text-zinc-400 mb-3 flex items-center justify-between">
-                        <span className="flex items-center space-x-1.5">
-                          <GitBranch className="w-3.5 h-3.5 text-indigo-400" />
-                          <span>Cross-Meeting Evolution & Modification Audit Transcript</span>
-                        </span>
-                        <span className="text-zinc-500 text-[10px]">Indexed across all sessions</span>
-                      </div>
-
-                      <div className="space-y-3 relative pl-6 before:content-[''] before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-zinc-800">
-                        {action.history.map((event, idx) => (
-                          <div key={event.id || idx} className="relative group">
-                            {/* Bullet Dot */}
-                            <span
-                              className={`absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full ring-4 ring-zinc-950 ${
-                                event.event_type === 'COMPLETED'
-                                  ? 'bg-emerald-400'
-                                  : event.event_type === 'MODIFIED'
-                                  ? 'bg-amber-400'
-                                  : event.event_type === 'HANDED_OFF'
-                                  ? 'bg-purple-400'
-                                  : 'bg-indigo-400'
-                              }`}
-                            />
-
-                            {/* Event Card */}
-                            <div className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800 space-y-1.5 hover:border-zinc-700 transition">
-                              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                                <div className="flex items-center space-x-2">
+                            {action.priority && (
+                              <>
+                                <span className="text-zinc-600">·</span>
+                                <span className="inline-flex items-center gap-1 font-mono text-[11px] text-zinc-400 lowercase">
                                   <span
-                                    className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
-                                      event.event_type === 'COMPLETED'
-                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                        : event.event_type === 'MODIFIED'
-                                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                        : event.event_type === 'HANDED_OFF'
-                                        ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                                        : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      action.priority === 'urgent'
+                                        ? 'bg-rose-400'
+                                        : action.priority === 'high'
+                                        ? 'bg-amber-400'
+                                        : action.priority === 'medium'
+                                        ? 'bg-sky-400'
+                                        : 'bg-zinc-500'
                                     }`}
-                                  >
-                                    {event.event_type}
-                                  </span>
+                                  />
+                                  <span>{action.priority}</span>
+                                </span>
+                              </>
+                            )}
 
-                                  <span className="font-semibold text-zinc-200">
-                                    {event.meeting_title}
-                                  </span>
-
-                                  {event.meeting_date && (
-                                    <span className="text-[10px] font-mono text-zinc-500">
-                                      ({event.meeting_date})
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div className="text-[11px] font-mono text-zinc-400">
-                                  Assignee: <strong className="text-zinc-200">{event.assignee}</strong>
-                                  {event.previous_assignee && (
-                                    <span className="text-zinc-500"> (Handed off from {event.previous_assignee})</span>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Summary of Modification */}
-                              <p className="text-xs text-zinc-300 font-sans">
-                                {event.change_summary}
-                              </p>
-
-                              {/* Spoken Quote Evidence */}
-                              {event.verbatim_quote && (
-                                <div className="p-2 rounded-lg bg-zinc-950 border border-zinc-850 text-[11px] text-zinc-400 italic flex items-start space-x-1.5">
-                                  <MessageSquare className="w-3.5 h-3.5 text-zinc-500 shrink-0 mt-0.5" />
-                                  <span>"{event.verbatim_quote}"</span>
-                                </div>
-                              )}
-                            </div>
-
+                            {originInfo && (
+                              <>
+                                <span className="text-zinc-600">·</span>
+                                <span className="text-zinc-400 text-xs">
+                                  Origin: <span className="text-zinc-300 font-medium">{originInfo.title}</span>
+                                </span>
+                                <span className="font-mono text-[10px] text-zinc-500">
+                                  {originInfo.slug}
+                                </span>
+                              </>
+                            )}
                           </div>
-                        ))}
+
+                          {/* Task Title */}
+                          <h3 className="text-[13.5px] font-medium text-zinc-100 leading-snug">
+                            {action.task}
+                          </h3>
+
+                          {/* Assignee & Follow-up ribbon */}
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500 font-mono tabular-nums pt-0.5">
+                            <span>
+                              Assignee: <strong className="text-zinc-300 font-normal">{action.assignee}</strong>
+                            </span>
+
+                            {action.deadline && (
+                              <>
+                                <span>·</span>
+                                <span>Target: {action.deadline}</span>
+                              </>
+                            )}
+
+                            {action.parent_action_id && (
+                              <>
+                                <span>·</span>
+                                <span className="text-indigo-400/90">
+                                  ↳ Linked to prior schema definition
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Column: Toggle Status & Expand Timeline */}
+                      <div className="flex items-center space-x-2 shrink-0 self-start md:self-center pl-5 md:pl-0">
+                        <button
+                          onClick={() => handleToggleStatus(action)}
+                          className="px-2.5 py-1 rounded-[5px] text-xs font-medium border border-white/[0.08] hover:bg-white/[0.05] text-zinc-300 transition-colors flex items-center space-x-1.5"
+                        >
+                          {isRunning ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Mark Closed</span>
+                            </>
+                          ) : (
+                            <>
+                              <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
+                              <span>Re-open</span>
+                            </>
+                          )}
+                        </button>
+
+                        {historyCount > 0 && (
+                          <button
+                            onClick={() => toggleExpand(action.id)}
+                            className="p-1 rounded-[5px] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] transition-colors"
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
-                  )}
 
-                </div>
-              );
-            })
+                    {/* Timeline Thread: Indented Continuous Thread Stream */}
+                    {isExpanded && historyCount > 0 && (
+                      <div className="px-6 pb-4 pt-1">
+                        <div className="border-l-2 border-white/[0.08] ml-4 pl-4 space-y-3">
+                          {action.history.map((ev, idx) => {
+                            const isHandoff = ev.event_type === 'HANDOFF';
+                            const isStatus = ev.event_type === 'STATUS_CHANGE';
+                            const isCreated = ev.event_type === 'CREATED';
+                            const meetingTitle = humanizeTitle(ev.meeting_title);
+                            const monogram = getMonogram(ev.speaker);
+
+                            return (
+                              <div key={idx} className="space-y-1 text-xs">
+                                <div className="flex items-center space-x-2">
+                                  <span className="w-[18px] h-[18px] rounded-[4px] bg-white/[0.06] text-[10px] font-mono text-zinc-300 flex items-center justify-center shrink-0">
+                                    {monogram}
+                                  </span>
+                                  <span className="text-zinc-200 font-medium">
+                                    {ev.speaker || 'System Agent'}
+                                  </span>
+                                  <span className="text-zinc-600">·</span>
+                                  <span className="text-zinc-400">
+                                    {meetingTitle.title}
+                                  </span>
+                                  <span className="font-mono text-[10px] text-zinc-500 tabular-nums">
+                                    {meetingTitle.slug}
+                                  </span>
+                                  <span className="text-zinc-600">·</span>
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono lowercase text-zinc-400 bg-white/[0.03] border border-white/[0.06] px-1.5 py-0.5 rounded-[4px]">
+                                    <span
+                                      className={`w-1 h-1 rounded-full ${
+                                        isHandoff
+                                          ? 'bg-purple-400'
+                                          : isStatus
+                                          ? 'bg-emerald-400'
+                                          : 'bg-zinc-500'
+                                      }`}
+                                    />
+                                    <span>{ev.event_type.replace(/_/g, ' ').toLowerCase()}</span>
+                                  </span>
+                                </div>
+
+                                <p className="text-zinc-400 pl-6 leading-relaxed text-[12.5px]">
+                                  {ev.note}
+                                </p>
+
+                                {ev.transcript_quote && ev.transcript_quote.trim() !== ev.note.trim() && (
+                                  <p className="text-zinc-500 italic pl-6 text-[11px] border-l border-white/10 ml-6">
+                                    "{ev.transcript_quote}"
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
-
-        {/* Modal Footer */}
-        <div className="px-6 py-3.5 bg-zinc-950 border-t border-zinc-800 text-xs text-zinc-400 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-2 font-mono text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>SQLite Multi-Session Action Lineage Ledger Active</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition"
-          >
-            Close Ledger
-          </button>
-        </div>
-
       </div>
     </div>
   );
 };
-

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WeeklyDigestResponse } from '../types';
-import { X, Copy, Check, User, Clock, AlertCircle, Calendar, ExternalLink } from 'lucide-react';
+import { X, Copy, Check } from 'lucide-react';
+import { getMonogram } from '../utils/formatters';
 
 interface Props {
   digest: WeeklyDigestResponse | null;
@@ -9,145 +10,210 @@ interface Props {
 
 export const WeeklyDigestModal: React.FC<Props> = ({ digest, onClose }) => {
   const [copied, setCopied] = useState(false);
-  const [viewMarkdown, setViewMarkdown] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   if (!digest) return null;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(digest.markdown_summary);
+    const lines: string[] = [
+      'Team Execution Digest',
+      `Generated: ${new Date(digest.generated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+      '',
+    ];
+
+    digest.members.forEach((m) => {
+      lines.push(`${m.assignee}`);
+      lines.push(`- Active Commitments: ${m.active_tasks.length} tasks`);
+      lines.push(`- Decisions Authored: ${m.decisions_count} institutional decisions`);
+
+      const urgentTasks = m.reminders.filter((r) => r.urgency === 'critical_24h' || r.urgency === 'upcoming_48h');
+      if (urgentTasks.length > 0) {
+        lines.push('- Upcoming Deadlines:');
+        urgentTasks.forEach((u) => {
+          const urgencyLabel = u.urgency === 'critical_24h' ? 'Due <24h' : 'Due <48h';
+          lines.push(`  * [${urgencyLabel}] ${u.task} (Deadline: ${u.deadline})`);
+        });
+      }
+
+      if (m.active_tasks.length > 0) {
+        lines.push('- Task Breakdown:');
+        m.active_tasks.forEach((t) => {
+          const status = t.is_approved ? 'Verified' : 'Pending';
+          lines.push(`  * [${status}] ${t.task} (${t.deadline || 'TBD'})`);
+        });
+      }
+
+      lines.push('');
+    });
+
+    lines.push('---');
+    lines.push('SyncState Meeting Governance Engine');
+
+    navigator.clipboard.writeText(lines.join('\n'));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
-          <div>
-            <h2 className="text-base font-bold text-zinc-100 flex items-center space-x-2">
-              <span>📊 Weekly Team Execution Digest & Reminders</span>
+    <div
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-100"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#0a0a0c] border border-white/[0.1] rounded-[10px] w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header: Clean Sentence Case, High-Contrast Copy Button */}
+        <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#050507]">
+          <div className="flex items-center space-x-2.5">
+            <h2 className="text-sm font-semibold text-zinc-100 tracking-tight">
+              Weekly execution digest
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Automated workload aggregation & upcoming deadline reminders per person
-            </p>
+            <span className="font-mono text-[10px] tabular-nums text-zinc-400 bg-white/[0.04] px-1.5 py-0.5 rounded-[4px]">
+              {digest.members.length} team members
+            </span>
           </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setViewMarkdown(!viewMarkdown)}
-              className="px-3 py-1.5 text-xs text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-medium transition-colors"
-            >
-              {viewMarkdown ? 'Structured View' : 'Raw Markdown'}
-            </button>
+
+          <div className="flex items-center space-x-3">
+            {/* Copy CTA Button */}
             <button
               onClick={handleCopy}
-              className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium flex items-center space-x-1.5 transition-colors shadow-sm"
+              className="px-3.5 py-1.5 bg-zinc-100 hover:bg-white text-zinc-950 rounded-[7px] text-xs font-medium flex items-center space-x-1.5 transition-all shadow-sm active:scale-95"
             >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copied!' : 'Copy for Slack/Email'}</span>
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy for Email</span>
+                </>
+              )}
             </button>
+
+            {/* Close Button with ESC hint */}
             <button
               onClick={onClose}
-              className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors"
+              className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] rounded-[5px] transition-colors flex items-center space-x-1"
             >
               <X className="w-4 h-4" />
+              <kbd className="hidden sm:inline-block text-[10px] font-mono text-zinc-500 bg-white/[0.06] px-1.5 py-0.5 rounded-[4px] select-none ml-1">
+                ESC
+              </kbd>
             </button>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6">
-          {viewMarkdown ? (
-            <pre className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-300 whitespace-pre-wrap leading-relaxed">
-              {digest.markdown_summary}
-            </pre>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Content: Structured View */}
+        <div className="p-6 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {digest.members.map((member) => {
                 const urgentReminders = member.reminders.filter((r) => r.urgency !== 'normal');
+                const monogram = getMonogram(member.assignee);
+
                 return (
                   <div
                     key={member.assignee}
-                    className="p-4 rounded-xl bg-zinc-950/70 border border-zinc-800 hover:border-zinc-750 transition-all space-y-3"
+                    className="p-4 rounded-[8px] bg-white/[0.015] border border-white/[0.07] hover:border-white/[0.12] transition-colors space-y-3"
                   >
                     {/* Member Header */}
-                    <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-7 h-7 rounded-full bg-indigo-950/60 border border-indigo-500/30 flex items-center justify-center">
-                          <User className="w-4 h-4 text-indigo-400" />
-                        </div>
+                    <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                      <div className="flex items-center space-x-2.5">
+                        <span className="w-[20px] h-[20px] rounded-[4px] bg-white/[0.06] border border-white/[0.08] text-[10px] font-mono text-zinc-300 flex items-center justify-center shrink-0">
+                          {monogram}
+                        </span>
                         <div>
-                          <h3 className="text-xs font-bold text-zinc-200">{member.assignee}</h3>
-                          <p className="text-[10px] text-zinc-500">
+                          <h3 className="text-xs font-medium text-zinc-200">
+                            {member.assignee}
+                          </h3>
+                          <p className="text-[10px] text-zinc-500 font-mono tabular-nums">
                             {member.decisions_count} decisions authored
                           </p>
                         </div>
                       </div>
-                      <span className="text-xs font-mono bg-zinc-850 px-2 py-0.5 rounded text-zinc-300">
+                      <span className="text-[10px] font-mono tabular-nums text-zinc-400 bg-white/[0.04] px-2 py-0.5 rounded-[4px]">
                         {member.active_tasks.length} active tasks
                       </span>
                     </div>
 
-                    {/* Deadline Urgent Alerts */}
+                    {/* Upcoming Deadline Urgent Alerts */}
                     {urgentReminders.length > 0 && (
-                      <div className="space-y-1.5">
-                        <div className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider flex items-center space-x-1">
-                          <AlertCircle className="w-3 h-3" />
-                          <span>Upcoming Deadline Alert (&lt;48h)</span>
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-mono uppercase text-amber-400/90 flex items-center space-x-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          <span>Deadline Warning (&lt;48h)</span>
                         </div>
                         {urgentReminders.map((rem, i) => (
                           <div
                             key={i}
-                            className={`p-2 rounded text-xs border flex items-center justify-between ${
-                              rem.urgency === 'critical_24h'
-                                ? 'bg-rose-950/30 border-rose-500/40 text-rose-300'
-                                : 'bg-amber-950/30 border-amber-500/40 text-amber-300'
-                            }`}
+                            className="text-xs text-zinc-300 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-[4px] space-y-0.5"
                           >
-                            <span className="truncate pr-2 font-medium">{rem.task}</span>
-                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 flex-shrink-0">
-                              {rem.deadline}
-                            </span>
+                            <p className="font-medium text-[12px]">{rem.task}</p>
+                            <p className="text-[10px] text-zinc-400 font-mono tabular-nums">
+                              Due: <strong className="text-amber-300 font-normal">{rem.deadline}</strong> ({rem.days_remaining}d remaining)
+                            </p>
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {/* Tasks List */}
+                    {/* Active Tasks List */}
                     <div className="space-y-1.5">
-                      <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-                        Current Commitments
+                      <div className="text-[10px] font-mono uppercase text-zinc-500">
+                        Active Tasks ({member.active_tasks.length})
                       </div>
-                      {member.active_tasks.map((task) => (
-                        <div
-                          key={task.id}
-                          className="p-2 rounded bg-zinc-900/60 border border-zinc-800 text-xs flex items-center justify-between"
-                        >
-                          <span className="text-zinc-300 truncate pr-2">{task.task}</span>
-                          {task.external_issue_url ? (
-                            <a
-                              href={task.external_issue_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[11px] font-mono text-emerald-400 hover:underline flex items-center space-x-1 flex-shrink-0"
+
+                      {member.active_tasks.length === 0 ? (
+                        <p className="text-[11px] text-zinc-600 font-mono italic">
+                          No outstanding active tasks.
+                        </p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {member.active_tasks.map((task) => (
+                            <div
+                              key={task.id}
+                              className="px-2.5 py-1.5 rounded-[4px] bg-white/[0.02] border border-white/[0.04] flex items-center justify-between text-xs text-zinc-300"
                             >
-                              <span>{task.external_issue_url.split('/').pop()}</span>
-                              <ExternalLink className="w-2.5 h-2.5" />
-                            </a>
-                          ) : (
-                            <span className="text-[10px] text-zinc-500 font-mono">Pending</span>
-                          )}
+                              <span className="truncate pr-2 text-[12.5px] font-normal">{task.task}</span>
+                              <div className="flex items-center space-x-1.5 shrink-0 text-[10px] font-mono tabular-nums">
+                                <span className="inline-flex items-center gap-1 font-mono text-[10px] text-zinc-400 lowercase">
+                                  <span
+                                    className={`w-1.2 h-1.2 rounded-full ${
+                                      task.priority === 'urgent'
+                                        ? 'bg-rose-400'
+                                        : task.priority === 'high'
+                                        ? 'bg-amber-400'
+                                        : 'bg-zinc-500'
+                                    }`}
+                                  />
+                                  <span>{task.priority}</span>
+                                </span>
+                                {task.deadline && (
+                                  <span className="text-zinc-500">
+                                    {task.deadline}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
         </div>
       </div>
     </div>
   );
 };
-

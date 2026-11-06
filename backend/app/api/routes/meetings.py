@@ -357,11 +357,33 @@ async def get_meeting_details(meeting_id: str):
     action_updates: List[ActionLifecycleUpdate] = []
     seen_action_ids = set()
 
+    def _find_turn_for_update(quote_or_summary: str, speaker_name: str, assignee_name: str) -> int:
+        if not turns:
+            return 0
+        q = (quote_or_summary or "").lower().strip()
+        if len(q) > 5:
+            for t in turns:
+                if q in t.text.lower() or t.text.lower() in q:
+                    return t.turn_index
+        spk = (speaker_name or "").lower().strip()
+        asg = (assignee_name or "").lower().strip()
+        for t in turns:
+            if spk and spk in t.speaker.lower():
+                return t.turn_index
+            if asg and (asg in t.speaker.lower() or asg in t.text.lower()):
+                return t.turn_index
+        return 0
+
     for h in reversed(hist_events):
         if h["event_type"] in ["COMPLETED", "HANDED_OFF", "MODIFIED", "PROGRESS"]:
             if h["action_id"] in seen_action_ids:
                 continue
             seen_action_ids.add(h["action_id"])
+            resolved_turn = _find_turn_for_update(
+                h.get("verbatim_quote") or h.get("change_summary", ""),
+                h.get("speaker") or "",
+                h.get("assignee") or ""
+            )
             action_updates.append(ActionLifecycleUpdate(
                 id=h["id"],
                 action_id=h["action_id"],
@@ -371,7 +393,7 @@ async def get_meeting_details(meeting_id: str):
                 assignee=h["assignee"],
                 previous_assignee=h.get("previous_assignee"),
                 details=h.get("change_summary", ""),
-                turn_index=0,
+                turn_index=resolved_turn,
                 verbatim_quote=h.get("verbatim_quote") or h.get("change_summary", "")
             ))
 
@@ -380,6 +402,11 @@ async def get_meeting_details(meeting_id: str):
     for ct in closed_tasks:
         if ct["id"] not in seen_action_ids:
             seen_action_ids.add(ct["id"])
+            resolved_ct_turn = _find_turn_for_update(
+                ct.get("verbatim_quote") or ct.get("task", ""),
+                ct.get("assignee") or "",
+                ct.get("assignee") or ""
+            )
             action_updates.append(ActionLifecycleUpdate(
                 id=f"upd_{ct['id']}",
                 action_id=ct["id"],
@@ -388,7 +415,7 @@ async def get_meeting_details(meeting_id: str):
                 speaker=ct.get("assignee", "Engineering"),
                 assignee=ct.get("assignee", "Engineering"),
                 details="Completed and closed in this meeting session.",
-                turn_index=ct.get("turn_index", 0),
+                turn_index=ct.get("turn_index") if ct.get("turn_index") is not None and ct.get("turn_index") != 0 else resolved_ct_turn,
                 verbatim_quote=ct.get("verbatim_quote", "")
             ))
 
